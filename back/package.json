@@ -1,0 +1,35 @@
+{
+  "name": "panda-ahorrador-back",
+  "version": "1.0.0",
+  "description": "Backend API para 熊猫理财 El panda ahorrador - Seguimiento de Gastos Anual",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "init-db": "node src/scripts/init-db.js",
+    "migrate-auth": "node src/scripts/run-auth-migration.js",
+    "migrate-new": "node src/scripts/run-new-migrations.js"
+  },
+  "keywords": [
+    "finance",
+    "expense-tracker",
+    "express",
+    "mysql",
+    "clean-architecture"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.2.0",
+    "mysql2": "^3.12.0",
+    "winston": "^3.17.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

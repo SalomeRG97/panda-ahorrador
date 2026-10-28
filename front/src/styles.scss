@@ -1,0 +1,344 @@
+/* -------------------------------------------------------------------------- */
+/* 🌸 熊猫理财 El panda ahorrador - Design System & Responsive CSS              */
+/* -------------------------------------------------------------------------- */
+
+:root {
+  --font-title: 'Caveat', cursive;
+  --font-body: 'Comfortaa', cursive, sans-serif;
+
+  /* Colores de Categorías (Pasteles Femeninos) */
+  --cat-hogar: #F4A6C1;
+  --cat-alimentacion: #F7C59F;
+  --cat-personal: #C3AED6;
+  --cat-entretenimiento: #A8E6CF;
+  --cat-financiero: #FFE5A0;
+  --cat-transporte: #A8D8EA;
+  --cat-mascotas: #F8B4B4;
+  --cat-varios: #B5EAD7;
+
+  /* Colores de Conceptos Financieros */
+  --color-ingresos: #A8D5BA;
+  --color-gastos: #E8A0BF;
+  --color-ahorros: #F0D9A0;
+  --color-fijos: #C4B7D5;
+  --color-restante: #A8D8EA;
+
+  /* Colores de Interfaz & Acentos Chinos */
+  --bg-main: #FFF5F7;
+  --bg-card: #FFFFFF;
+  --text-dark: #4A3F55;
+  --text-muted: #8C7B99;
+  --accent-red: #D4566A;
+  --accent-gold: #E8C4A2;
+  --accent-pink-hover: #F8C8DC;
+  
+  --shadow-soft: 0 8px 25px rgba(212, 86, 106, 0.08);
+  --shadow-hover: 0 12px 30px rgba(212, 86, 106, 0.16);
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-sm: 8px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--bg-main);
+  color: var(--text-dark);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background-image: radial-gradient(#F8C8DC 0.75px, transparent 0.75px);
+  background-size: 24px 24px;
+}
+
+/* Tipografía Adaptativa */
+h1, h2, h3, .font-caveat, .chinese-title {
+  font-family: var(--font-title);
+  font-weight: 700;
+}
+
+h1 { font-size: clamp(2rem, 5vw, 3rem); color: var(--accent-red); }
+h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); color: var(--text-dark); }
+h3 { font-size: clamp(1.3rem, 3.5vw, 1.7rem); color: var(--text-dark); }
+
+p, span, button, input, select, table {
+  font-family: var(--font-body);
+}
+
+/* Scrollbar Bonita */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #FFF0F4;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--accent-red);
+  border-radius: 10px;
+}
+
+/* Tablas Responsivas */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 12px;
+  border-radius: var(--radius-md);
+}
+
+/* Botones con estilo pastel */
+.btn-pastel {
+  font-family: var(--font-body);
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  font-size: 0.95rem;
+}
+
+.btn-primary-pastel {
+  background: linear-gradient(135deg, #F4A6C1 0%, #D4566A 100%);
+  color: white;
+}
+
+.btn-primary-pastel:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(212, 86, 106, 0.3);
+}
+
+.btn-secondary-pastel {
+  background-color: #FFF0F4;
+  color: var(--text-dark);
+  border: 1.5px solid #F4A6C1;
+}
+
+.btn-secondary-pastel:hover {
+  background-color: #F4A6C1;
+  color: white;
+}
+
+/* Cards Estilo Pastel Chino */
+.card-pastel {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: clamp(16px, 3vw, 24px);
+  box-shadow: var(--shadow-soft);
+  border: 1px solid rgba(244, 166, 193, 0.25);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.card-pastel:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-hover);
+}
+
+/* Badges de Categoría */
+.badge-category {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #333;
+}
+
+/* Colores de Conceptos */
+.badge-concept-ingreso { background-color: var(--color-ingresos); color: #1E4E36; }
+.badge-concept-gasto { background-color: var(--color-gastos); color: #6A1B3B; }
+.badge-concept-ahorro { background-color: var(--color-ahorros); color: #5B4810; }
+.badge-concept-fijo { background-color: var(--color-fijos); color: #3D2B52; }
+
+/* Decoración Tradicional China Pastel */
+.chinese-title-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  text-align: center;
+  flex-wrap: wrap;
+}
+
+.chinese-title-wrapper::before,
+.chinese-title-wrapper::after {
+  content: '🌸';
+  font-size: 1.2rem;
+}
+
+/* Animaciones Smooth */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Pestañas tipo agenda scrollables en mobile */
+.agenda-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 2px solid #F4A6C1;
+  margin-bottom: 20px;
+  padding-left: 4px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  white-space: nowrap;
+}
+
+.agenda-tab-btn {
+  background: #FFF0F4;
+  border: 1.5px solid #F4A6C1;
+  border-bottom: none;
+  border-radius: 14px 14px 0 0;
+  padding: 10px 18px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  color: var(--text-dark);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.agenda-tab-btn.active {
+  background: var(--bg-card);
+  color: var(--accent-red);
+  border-color: var(--accent-red);
+  box-shadow: 0 -4px 10px rgba(212, 86, 106, 0.1);
+  transform: translateY(2px);
+}
+
+/* Modales Responsivos y a prueba de cortes */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  background: rgba(30, 20, 35, 0.55);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  padding: clamp(10px, 3vh, 24px) 14px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
+}
+
+.modal-card {
+  margin: auto;
+  width: 100%;
+  max-width: 520px;
+  max-height: calc(100dvh - 28px);
+  display: flex;
+  flex-direction: column;
+  background: #FFFFFF;
+  border-radius: 20px;
+  border: 2px solid #F4A6C1;
+  box-shadow: 0 16px 40px rgba(212, 86, 106, 0.22);
+  overflow: hidden;
+  box-sizing: border-box;
+  animation: modalScaleUp 0.2s cubic-bezier(0.18, 0.9, 0.32, 1);
+}
+
+@keyframes modalScaleUp {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.modal-card > form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.modal-header {
+  flex-shrink: 0;
+  padding: 16px 20px 12px;
+  border-bottom: 1.5px dashed #F4A6C1;
+  background: linear-gradient(135deg, #FFF0F4 0%, #FFFFFF 100%);
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #D4566A;
+  font-size: 1.25rem;
+}
+
+.modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px 20px;
+}
+
+.modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: #F4A6C1;
+  border-radius: 10px;
+}
+
+.modal-footer {
+  flex-shrink: 0;
+  padding: 12px 20px;
+  border-top: 1.5px solid #FFE5EC;
+  background: #FFF9FA;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Adaptación para pantallas pequeñas */
+@media (max-width: 600px) {
+  body {
+    background-size: 16px 16px;
+  }
+  .btn-pastel {
+    width: 100%;
+  }
+  .agenda-tabs {
+    gap: 4px;
+  }
+  .agenda-tab-btn {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+  }
+}

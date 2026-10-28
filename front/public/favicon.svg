@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <circle cx="50" cy="50" r="48" fill="#FFF0F4"/>
+  <!-- Ears -->
+  <circle cx="26" cy="26" r="14" fill="#2D3748"/>
+  <circle cx="74" cy="26" r="14" fill="#2D3748"/>
+  <circle cx="26" cy="26" r="7" fill="#F4A6C1"/>
+  <circle cx="74" cy="26" r="7" fill="#F4A6C1"/>
+  <!-- Head -->
+  <circle cx="50" cy="54" r="32" fill="#FFFFFF" stroke="#2D3748" stroke-width="3"/>
+  <!-- Eye Patches -->
+  <ellipse cx="38" cy="50" rx="9" ry="11" fill="#2D3748" transform="rotate(-12 38 50)"/>
+  <ellipse cx="62" cy="50" rx="9" ry="11" fill="#2D3748" transform="rotate(12 62 50)"/>
+  <!-- Eyes Sparkle -->
+  <circle cx="39" cy="48" r="3" fill="#FFFFFF"/>
+  <circle cx="61" cy="48" r="3" fill="#FFFFFF"/>
+  <circle cx="41" cy="50" r="1" fill="#FFFFFF"/>
+  <circle cx="63" cy="50" r="1" fill="#FFFFFF"/>
+  <!-- Cheeks -->
+  <circle cx="30" cy="58" r="5" fill="#F4A6C1" opacity="0.7"/>
+  <circle cx="70" cy="58" r="5" fill="#F4A6C1" opacity="0.7"/>
+  <!-- Nose & Mouth -->
+  <ellipse cx="50" cy="57" rx="4" ry="3" fill="#2D3748"/>
+  <path d="M 46 62 Q 50 66 54 62" stroke="#2D3748" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- Golden Coin badge -->
+  <circle cx="74" cy="74" r="13" fill="#FFD700" stroke="#B8860B" stroke-width="2"/>
+  <text x="74" y="79" font-size="13" font-weight="bold" fill="#B8860B" text-anchor="middle" font-family="sans-serif">$</text>
+</svg>
