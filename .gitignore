@@ -19,3 +19,8 @@ front/.angular/
 .DS_Store
 Thumbs.db
 
+# Agent memory cache (AGENTS.md and .agents/skills/ ARE tracked)
+.agents/skills/*/cache/
+.agents/tmp/
+
+
