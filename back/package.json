@@ -2,10 +2,10 @@
   "name": "panda-ahorrador-back",
   "version": "1.0.0",
   "description": "Backend API para 熊猫理财 El panda ahorrador - Seguimiento de Gastos Anual",
-  "main": "src/app.js",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node src/app.js",
-    "dev": "nodemon src/app.js",
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
     "init-db": "node src/scripts/init-db.js",
     "migrate-auth": "node src/scripts/run-auth-migration.js",
     "migrate-new": "node src/scripts/run-new-migrations.js"

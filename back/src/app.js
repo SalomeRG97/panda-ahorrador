@@ -142,15 +142,4 @@ app.use((req, res, next) => {
 // Middleware global de manejo de errores
 app.use(errorHandler);
 
-// Iniciar servidor cuando se ejecuta directamente
-if (require.main === module) {
-  app.listen(config.port, '0.0.0.0', () => {
-    logger.info(`===========================================================`);
-    logger.info(`🌸 熊猫理财 El panda ahorrador - Backend API corriendo en puerto ${config.port}`);
-    logger.info(`🗄️ Base de datos: MySQL CleverCloud (${config.db.database})`);
-    logger.info(`🔐 Autenticación: JWT habilitado`);
-    logger.info(`===========================================================`);
-  });
-}
-
 module.exports = app;
