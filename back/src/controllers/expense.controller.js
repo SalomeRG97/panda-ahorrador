@@ -1,7 +1,6 @@
 const expenseService = require('../services/expense.service');
 const logger = require('../config/logger');
 const recurrenceService = require('../services/recurrence.service');
-const AppError = require('../utils/app-error');
 
 class ExpenseController {
   // GASTOS PRESUPUESTADOS
@@ -10,10 +9,6 @@ class ExpenseController {
       const userId = req.effectiveUserId || req.user.id;
       logger.info(`[ExpenseController] POST /api/expenses/budget (userId: ${userId})`);
       if (req.body.recurrence && req.body.recurrence.frequency) {
-        const { date, concept, budget_amount, category_id, month_id } = req.body;
-        if (!month_id || !category_id || !date || !concept || budget_amount == null) {
-          throw new AppError(400, 'Faltan campos obligatorios para el gasto presupuestado');
-        }
         const result = await recurrenceService.createSeries(userId, req.body);
         return res.status(201).json({ success: true, data: { id: null, ...req.body, ...result } });
       }
@@ -29,7 +24,7 @@ class ExpenseController {
       const { id } = req.params;
       const userId = req.effectiveUserId || req.user.id;
       logger.info(`[ExpenseController] DELETE /api/expenses/budget/${id}/series (userId: ${userId})`);
-      await recurrenceService.deleteSeriesFromExpense(userId, parseInt(id, 10));
+      await recurrenceService.deleteSeriesFromExpense(userId, Number(id));
       res.json({ success: true, message: 'Serie eliminada desde esta fecha' });
     } catch (error) {
       next(error);
@@ -42,7 +37,7 @@ class ExpenseController {
       const userId = req.effectiveUserId || req.user.id;
       const scope = req.body.scope || 'single';
       logger.info(`[ExpenseController] PUT /api/expenses/budget/${id} (scope: ${scope}, userId: ${userId})`);
-      await recurrenceService.updateBudgetWithScope(userId, parseInt(id, 10), req.body, scope);
+      await recurrenceService.updateBudgetWithScope(userId, Number(id), req.body, scope);
       res.json({ success: true, message: 'Gasto presupuestado actualizado' });
     } catch (error) {
       next(error);
@@ -55,7 +50,7 @@ class ExpenseController {
       const userId = req.effectiveUserId || req.user.id;
       const scope = req.query.scope || req.body?.scope || 'single';
       logger.info(`[ExpenseController] DELETE /api/expenses/budget/${id} (scope: ${scope}, userId: ${userId})`);
-      await recurrenceService.deleteBudgetWithScope(userId, parseInt(id, 10), scope);
+      await recurrenceService.deleteBudgetWithScope(userId, Number(id), scope);
       res.json({ success: true, message: 'Gasto presupuestado eliminado' });
     } catch (error) {
       next(error);

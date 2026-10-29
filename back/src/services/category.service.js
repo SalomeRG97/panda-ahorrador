@@ -2,45 +2,7 @@ const categoryRepository = require('../repositories/category.repository');
 const logger = require('../config/logger');
 const AppError = require('../utils/app-error');
 
-const HEX_COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
-const ICON_REGEX = /^[a-z0-9- ]+$/;
-
 class CategoryService {
-  _validateCategoryFields({ name, color, icon }, { partial = false } = {}) {
-    if (!partial && (!name || !color || !icon)) {
-      throw new AppError(400, 'Nombre, color e icono son requeridos');
-    }
-
-    if (name !== undefined) {
-      if (typeof name !== 'string' || !name.trim()) {
-        throw new AppError(400, 'El nombre es requerido');
-      }
-      if (name.trim().length > 50) {
-        throw new AppError(400, 'El nombre no puede exceder 50 caracteres');
-      }
-    }
-
-    if (color !== undefined) {
-      if (typeof color !== 'string' || !HEX_COLOR_REGEX.test(color.trim())) {
-        throw new AppError(400, 'El color debe tener formato hexadecimal #RRGGBB');
-      }
-    }
-
-    if (icon !== undefined) {
-      if (
-        typeof icon !== 'string' ||
-        icon.trim().length === 0 ||
-        icon.length > 30 ||
-        !ICON_REGEX.test(icon)
-      ) {
-        throw new AppError(
-          400,
-          'El icono no puede exceder 30 caracteres y solo permite [a-z0-9- ]'
-        );
-      }
-    }
-  }
-
   async getAllCategories(userId) {
     logger.info(`[CategoryService] Obteniendo categorías para usuario ${userId || 'global'}`);
     if (userId) {
@@ -51,8 +13,6 @@ class CategoryService {
 
   async createCategory(name, color, icon, userId) {
     logger.info(`[CategoryService] Creando categoría: ${name} para usuario ${userId}`);
-
-    this._validateCategoryFields({ name, color, icon }, { partial: false });
 
     const cleanName = name.trim();
     const cleanColor = color.trim();
@@ -93,9 +53,8 @@ class CategoryService {
     }
 
     const { name, color, icon } = data;
-    this._validateCategoryFields({ name, color, icon }, { partial: true });
-
     const updatePayload = {};
+
     if (name !== undefined) {
       const cleanName = name.trim();
       if (isGlobal) {

@@ -298,7 +298,7 @@ db.query = async (sqlRaw, params = []) => {
   if (sql.includes('FROM months m JOIN years y ON m.year_id = y.id WHERE m.id = ?')) {
     const m = state.months.find((r) => r.id === Number(params[0]));
     const y = m ? state.years.find((r) => r.id === m.year_id) : null;
-    return [y ? [{ user_id: y.user_id }] : [], []];
+    return [y ? [{ ...m, year: y.year, user_id: y.user_id }] : [], []];
   }
   if (sql.includes('FROM budget_expenses be JOIN months m ON be.month_id = m.id JOIN years y ON m.year_id = y.id WHERE be.id = ?')) {
     const be = state.budget_expenses.find((r) => r.id === Number(params[0]));

@@ -12,6 +12,17 @@ description: >-
 
 ---
 
+## [2026-10-28] Validación Centralizada de Entrada con Zod (`validate.middleware.js`) y Coherencia Fecha-Mes
+- **Decisión:**
+  1. Incorporar `zod` en `back/` con el middleware `validate({ body, params, query })` (`back/src/middlewares/validate.middleware.js`) que parsea y normaliza los datos de entrada antes de ejecutar `assertOwnership` y los controladores, respondiendo `400 { success: false, message: 'Datos inválidos', errors: [{ field, message }] }` ante cualquier error de formato.
+  2. Centralizar las primitivas comunes en `back/src/validators/common.validator.js`: `id` (`z.coerce.number().int().positive()` con rechazo de `null`/`''`/booleanos), `date` (`YYYY-MM-DD` con validación real de calendario y años bisiestos), `money` (`0` a `999_999_999_999`, máximo 2 decimales) y `concept` (`trim`, 1 a 255 caracteres).
+  3. Mantener compatibilidad transparente con las variantes de nombres de campo enviadas por el frontend (`month_id` / `monthId`, `monthChallengeId` / `month_challenge_id`, `email` / `viewerEmail`) normalizándolas en el esquema.
+  4. Validar en la capa de servicios (`income.service.js`, `expense.service.js`, `recurrence.service.js`) que la fecha (`YYYY-MM-DD`) de todo ingreso o gasto caiga dentro del año y mes correspondientes al `month_id` indicado (`400` si no coincide).
+- **Por qué:** Eliminar validaciones manuales dispersas o inconsistentes entre controladores y servicios, evitar que cadenas gigantescas, montos negativos, fechas inexistentes (`2026-02-30`) o IDs no numéricos lleguen a las consultas SQL, e impedir que se registren gastos/ingresos con fechas de otro mes distinto al contenedor `month_id`.
+- **Consecuencia:** Toda ruta nueva en `back/src/routes/` debe declarar su esquema en `back/src/validators/` e invocar `validate(...)` en la cadena de middlewares.
+
+---
+
 ## [2026-10-28] Endurecimiento de Reglas de Negocio: Categorías/Medios en Gastos, `must_change_password` en Creación por Admin y Protección de Último Admin
 - **Decisión:**
   1. En `category.service.updateCategory`: prohibir a usuarios no-admin modificar categorías globales (`user_id IS NULL`) devolviendo `403`, devolver `404` si la categoría pertenece a otro usuario, validar formato de `name` (≤ 50), `color` (`#RRGGBB`) e `icon` (≤ 30, `[a-z0-9- ]`), y verificar duplicados (`409`) al renombrar.

@@ -5,7 +5,6 @@ const expenseService = require('./expense.service');
 const logger = require('../config/logger');
 const AppError = require('../utils/app-error');
 
-const FREQUENCIES = ['daily', 'weekly', 'biweekly', 'monthly', 'yearly'];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -88,13 +87,11 @@ class RecurrenceService {
   /** Crea la regla y genera los gastos en todos los meses ya creados del usuario. */
   async createSeries(userId, data) {
     const { frequency, recurrence } = { frequency: data.recurrence?.frequency, recurrence: data.recurrence };
-    if (!FREQUENCIES.includes(frequency)) {
-      throw new AppError(400, 'Frecuencia de repetici\u00f3n no v\u00e1lida');
-    }
     const startDate = String(data.date).slice(0, 10);
     const endDate = recurrence.end_date ? String(recurrence.end_date).slice(0, 10) : null;
-    if (endDate && endDate < startDate) {
-      throw new AppError(400, 'La fecha final no puede ser anterior a la fecha del gasto');
+
+    if (data.month_id != null) {
+      await expenseService.assertDateInMonth(startDate, data.month_id);
     }
 
     await expenseService.assertValidCategoryForUser(data.category_id, userId);
@@ -117,11 +114,11 @@ class RecurrenceService {
     const months = await repo.getMonthsForUser(userId);
     let total = 0;
     for (const m of months) total += await this.materializeForMonth(rule, m);
-    logger.info(`[RecurrenceService] Serie ${ruleId} (${frequency}) cre\u00f3 ${total} gastos`);
+    logger.info(`[RecurrenceService] Serie ${ruleId} (${frequency}) creó ${total} gastos`);
     return { ruleId, created: total };
   }
 
-  /** Al crear un a\u00f1o nuevo, aplica las series activas del usuario a sus meses. */
+  /** Al crear un año nuevo, aplica las series activas del usuario a sus meses. */
   async materializeForYear(userId, yearId) {
     const rules = await repo.getAllForUser(userId);
     if (!rules.length) return;
@@ -130,7 +127,7 @@ class RecurrenceService {
     for (const rule of rules) {
       for (const m of months) total += await this.materializeForMonth(rule, m);
     }
-    logger.info(`[RecurrenceService] A\u00f1o ${yearId}: ${total} gastos recurrentes generados`);
+    logger.info(`[RecurrenceService] Año ${yearId}: ${total} gastos recurrentes generados`);
   }
 
   async deleteSeriesFromExpense(userId, expenseId) {
@@ -237,7 +234,6 @@ class RecurrenceService {
 
     if (scope === 'all') {
       logger.info(`[RecurrenceService] Actualizando toda la serie recurrente ID ${rule.id}`);
-      // Validar y actualizar primero el registro actual por si cambió de fecha o mes inválido
       await expenseService.updateBudgetExpense(expenseId, data, ownerId);
       await repo.updateRule(rule.id, updatePayload);
       await repo.updateAllOccurrences(rule.id, updatePayload);
@@ -250,15 +246,12 @@ class RecurrenceService {
       const ruleStartDate = String(rule.start_date).slice(0, 10);
       logger.info(`[RecurrenceService] Actualizando serie ID ${rule.id} desde fecha ${fromDate}`);
 
-      // Validar primero el gasto específico antes de dividir o actualizar la serie
       await expenseService.updateBudgetExpense(expenseId, data, ownerId);
 
       if (fromDate <= ruleStartDate) {
-        // Toda la serie ocurre a partir de esta fecha, actualizar regla completa y ocurrencias futuras
         await repo.updateRule(rule.id, updatePayload);
         await repo.updateOccurrencesFrom(rule.id, fromDate, rule.id, updatePayload);
       } else {
-        // Hay ocurrencias pasadas: dividir regla (la anterior termina ayer, la nueva inicia hoy)
         const prev = parse(fromDate);
         prev.setUTCDate(prev.getUTCDate() - 1);
         await repo.setEndDate(rule.id, toStr(prev));
@@ -275,7 +268,6 @@ class RecurrenceService {
 
         await repo.updateOccurrencesFrom(rule.id, fromDate, newRuleId, updatePayload);
       }
-      // Actualizar el gasto específico
       await expenseService.updateBudgetExpense(expenseId, data, ownerId);
       return true;
     }

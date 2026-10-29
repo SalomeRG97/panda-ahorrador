@@ -2,18 +2,6 @@ const repo = require('../repositories/payment-method.repository');
 const logger = require('../config/logger');
 const AppError = require('../utils/app-error');
 
-const RESERVED = 'retiro de ahorros';
-
-function validateName(raw) {
-  const name = (raw || '').trim();
-  if (!name) throw new AppError(400, 'El nombre del medio de pago es requerido');
-  if (name.length > 50) throw new AppError(400, 'El nombre no puede exceder 50 caracteres');
-  if (name.toLowerCase() === RESERVED) {
-    throw new AppError(400, '«Retiro de Ahorros» es un medio de pago reservado del sistema');
-  }
-  return name;
-}
-
 class PaymentMethodController {
   async getAll(req, res, next) {
     try {
@@ -28,7 +16,7 @@ class PaymentMethodController {
   async create(req, res, next) {
     try {
       const userId = req.effectiveUserId || req.user.id;
-      const name = validateName(req.body.name);
+      const { name } = req.body;
       if (await repo.findByName(userId, name)) {
         throw new AppError(409, 'Ya tienes un medio de pago con ese nombre');
       }
@@ -41,9 +29,9 @@ class PaymentMethodController {
 
   async update(req, res, next) {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = Number(req.params.id);
       const userId = req.effectiveUserId || req.user.id;
-      const name = validateName(req.body.name);
+      const { name } = req.body;
       const current = await repo.getById(id);
       if (!current || Number(current.user_id) !== Number(userId)) {
         throw new AppError(404, 'Medio de pago no encontrado');
@@ -61,7 +49,7 @@ class PaymentMethodController {
 
   async delete(req, res, next) {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = Number(req.params.id);
       const userId = req.effectiveUserId || req.user.id;
       const current = await repo.getById(id);
       if (!current || Number(current.user_id) !== Number(userId)) {

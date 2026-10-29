@@ -4,6 +4,8 @@ const multer = require('multer');
 const path = require('path');
 const profileController = require('../controllers/profile.controller');
 const { authenticate } = require('../middlewares/auth.middleware');
+const { validate } = require('../middlewares/validate.middleware');
+const { updateProfileSchema, changePasswordSchema } = require('../validators/profile.validator');
 const AppError = require('../utils/app-error');
 
 // Configurar multer para subida de avatares
@@ -37,8 +39,8 @@ const upload = multer({
 router.use(authenticate);
 
 router.get('/', (req, res, next) => profileController.getProfile(req, res, next));
-router.put('/', (req, res, next) => profileController.updateProfile(req, res, next));
-router.put('/password', (req, res, next) => profileController.changePassword(req, res, next));
+router.put('/', validate({ body: updateProfileSchema }), (req, res, next) => profileController.updateProfile(req, res, next));
+router.put('/password', validate({ body: changePasswordSchema }), (req, res, next) => profileController.changePassword(req, res, next));
 router.post('/avatar', upload.single('avatar'), (req, res, next) => profileController.uploadAvatar(req, res, next));
 
 module.exports = router;

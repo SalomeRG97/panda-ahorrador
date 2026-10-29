@@ -4,7 +4,7 @@ const logger = require('../config/logger');
 class ShareController {
   async shareData(req, res, next) {
     try {
-      const { viewerEmail } = req.body;
+      const viewerEmail = req.body.viewerEmail || req.body.email;
       logger.info(`[ShareController] POST /api/share -> Owner ${req.user.id} comparte con ${logger.maskEmail(viewerEmail)}`);
       const result = await authService.shareWithViewer(req.user.id, viewerEmail);
       res.status(201).json({ success: true, data: result });
@@ -17,7 +17,7 @@ class ShareController {
     try {
       const { viewerId } = req.params;
       logger.info(`[ShareController] DELETE /api/share/${viewerId}`);
-      await authService.removeShare(req.user.id, parseInt(viewerId));
+      await authService.removeShare(req.user.id, Number(viewerId));
       res.json({ success: true, message: 'Acceso revocado' });
     } catch (error) {
       next(error);

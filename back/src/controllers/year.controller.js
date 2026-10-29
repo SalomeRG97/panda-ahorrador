@@ -29,9 +29,6 @@ class YearController {
       const { year, startMonth } = req.body;
       const userId = req.effectiveUserId || req.user.id;
       logger.info(`[YearController] POST /api/years -> Year: ${year}, StartMonth: ${startMonth}, userId: ${userId}`);
-      if (!year || !startMonth) {
-        return res.status(400).json({ success: false, message: 'Año y mes de inicio son requeridos' });
-      }
       const newYear = await yearService.createYear(year, startMonth, userId);
       res.status(201).json({ success: true, data: newYear });
     } catch (error) {

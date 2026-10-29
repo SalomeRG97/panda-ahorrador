@@ -40,7 +40,7 @@ description: >-
 - [x] **Sistema de Memoria del Proyecto:**
   - Creados `AGENTS.md`, `back/AGENTS.md`, `front/AGENTS.md` y las 4 skills en `.agents/skills/`.
 
-### Fase 1 — Seguridad Base (En curso)
+### Fase 1 — Seguridad Base (Completada el 2026-10-28)
 - [x] **Prompt 5 (Helmet, Rate Limiting, `AppError`, `X-Request-Id` y Privacidad en Logs):**
   - Instalados `helmet` y `express-rate-limit` en `back/`.
   - Configurado `app.set('trust proxy', 1)`, `app.use(helmet())` y `express.json({ limit: '100kb' })` en `back/src/app.js`.
@@ -63,12 +63,18 @@ description: >-
   - Si `must_change_password` es `TRUE`, el login devuelve el flag, el backend bloquea los demás endpoints con `403` (`code: 'PASSWORD_CHANGE_REQUIRED'`) en `auth.middleware.js`, y el frontend (`ForceChangePasswordPage.tsx`, `ProtectedRoute.tsx`, `LoginPage.tsx`, `api.ts`) redirige a `/change-password`.
   - En `adminUpdateUser` (y `toggleUserStatus`/`adminDeleteUser`): lista blanca explícita (`name`, `email`, `username`, `role`, `isActive`), bloqueo de auto-degradación o auto-desactivación del propio admin y bloqueo para impedir que el sistema quede sin ningún `admin` activo.
   - Normalización y validación de `email` (`trim` + `toLowerCase` + regex) y `username` (`trim`, 3–30 caracteres, `[a-zA-Z0-9_.]`) en `register`, `updateProfile`, `adminCreateUser` y `adminUpdateUser`.
+- [x] **Prompt 8 (Validación Centralizada con Zod y Verificación Fecha-Mes):**
+  - Instalado `zod` en `back/` y creado `back/src/middlewares/validate.middleware.js` (`validate({ body, params, query })`), que responde `400 { success: false, message: 'Datos inválidos', errors: [{ field, message }] }` y reemplaza `req.body`, `req.params` y `req.query` por los datos parseados y normalizados.
+  - Creados los esquemas en `back/src/validators/` (`common`, `auth`, `profile`, `year`, `month`, `week`, `income`, `saving`, `expense`, `challenge`, `category`, `payment-method`, `share`, `admin`, `summary`).
+  - Aplicado `validate` en las 14 rutas de `back/src/routes/` y eliminadas las validaciones manuales duplicadas en controladores y servicios manteniendo las reglas de negocio.
+  - Agregada verificación en `income.service.js`, `expense.service.js` y `recurrence.service.js` para asegurar que la fecha (`YYYY-MM-DD`) del ingreso o gasto pertenezca al año y mes (`month_id`) indicado (`400` en caso contrario).
+  - Creado script de prueba `back/src/scripts/test-prompt8.js` (`npm run test:prompt8`).
 
 ---
 
-## 🔴 En Progreso / Próximo Paso: Fase 1 — Seguridad Base
+## 🔴 En Progreso / Próximo Paso: Fase 2 — Estabilidad y Calidad
 
-- [ ] **Prompt 8:** Validación centralizada de entrada con `zod` (`validate.middleware.js` y esquemas en `back/src/validators/`).
+- [ ] **Prompt 9:** Migraciones versionadas (Knex/Umzug), eliminación de `CREATE TABLE` en runtime (`payment-method` y `recurrence`), índices faltantes, FK `years.user_id` y transacciones SQL (`withTransaction`) en `createYear` y `recurrence.service`.
 
 ---
 

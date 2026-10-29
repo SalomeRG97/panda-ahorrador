@@ -10,9 +10,6 @@ const { invalidateUserCache } = require('../middlewares/auth.middleware');
 const SALT_ROUNDS = 12;
 const REFRESH_TOKEN_BYTES = 64;
 const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 días
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const USERNAME_REGEX = /^[a-zA-Z0-9_.]{3,30}$/;
 const ADMIN_UPDATE_WHITELIST = ['name', 'email', 'username', 'role', 'isActive'];
 
 function toMySqlUtcDatetime(date) {
@@ -29,31 +26,6 @@ function parseMySqlUtcDatetime(val) {
 }
 
 class AuthService {
-  _normalizeAndValidateEmail(rawEmail) {
-    if (typeof rawEmail !== 'string') {
-      throw new AppError(400, 'El formato del email no es válido');
-    }
-    const email = rawEmail.trim().toLowerCase();
-    if (!email || email.length > 255 || !EMAIL_REGEX.test(email)) {
-      throw new AppError(400, 'El formato del email no es válido');
-    }
-    return email;
-  }
-
-  _normalizeAndValidateUsername(rawUsername) {
-    if (typeof rawUsername !== 'string') {
-      throw new AppError(400, 'El nombre de usuario no es válido');
-    }
-    const username = rawUsername.trim();
-    if (!USERNAME_REGEX.test(username)) {
-      throw new AppError(
-        400,
-        'El nombre de usuario debe tener entre 3 y 30 caracteres y solo usar [a-zA-Z0-9_.]'
-      );
-    }
-    return username;
-  }
-
   _generateSecureRandomPassword(length = 16) {
     const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const lower = 'abcdefghijklmnopqrstuvwxyz';
@@ -78,24 +50,16 @@ class AuthService {
       [chars[i], chars[j]] = [chars[j], chars[i]];
     }
 
-    const password = chars.join('');
-    this._validatePasswordStrength(password);
-    return password;
+    return chars.join('');
   }
 
   // --- REGISTRO ---
   async register(email, username, password, name, meta = {}) {
-    logger.info(`[AuthService] Registrando nuevo usuario: ${logger.maskEmail(email)}`);
-
-    if (!email || !username || !password || !name || typeof name !== 'string' || !name.trim()) {
-      throw new AppError(400, 'Todos los campos son requeridos');
-    }
-
-    const cleanEmail = this._normalizeAndValidateEmail(email);
-    const cleanUsername = this._normalizeAndValidateUsername(username);
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanUsername = username.trim();
     const cleanName = name.trim();
 
-    this._validatePasswordStrength(password);
+    logger.info(`[AuthService] Registrando nuevo usuario: ${logger.maskEmail(cleanEmail)}`);
 
     const existingEmail = await authRepository.findUserByEmail(cleanEmail);
     if (existingEmail) {
@@ -245,12 +209,6 @@ class AuthService {
   async changePassword(userId, oldPassword, newPassword) {
     logger.info(`[AuthService] Cambio de contraseña para usuario ID: ${userId}`);
 
-    if (!newPassword) {
-      throw new AppError(400, 'La nueva contraseña es requerida');
-    }
-
-    this._validatePasswordStrength(newPassword);
-
     const currentHash = await authRepository.getPasswordHash(userId);
     const isMatch = await bcrypt.compare(oldPassword || '', currentHash || '');
     if (!isMatch) {
@@ -265,24 +223,6 @@ class AuthService {
     invalidateUserCache(userId);
 
     return true;
-  }
-
-  _validatePasswordStrength(password) {
-    if (typeof password !== 'string' || password.length < 8) {
-      throw new AppError(400, 'La contraseña debe tener al menos 8 caracteres');
-    }
-    if (!/[A-Z]/.test(password)) {
-      throw new AppError(400, 'La contraseña debe incluir al menos una letra mayúscula');
-    }
-    if (!/[a-z]/.test(password)) {
-      throw new AppError(400, 'La contraseña debe incluir al menos una letra minúscula');
-    }
-    if (!/[0-9]/.test(password)) {
-      throw new AppError(400, 'La contraseña debe incluir al menos un número');
-    }
-    if (!/[@$!%*?&.#_\-]/.test(password)) {
-      throw new AppError(400, 'La contraseña debe incluir al menos un carácter especial (@$!%*?&.#_-)');
-    }
   }
 
   // --- PERFIL ---
@@ -300,14 +240,11 @@ class AuthService {
     const fields = {};
 
     if (name !== undefined && name !== null) {
-      if (typeof name !== 'string' || !name.trim()) {
-        throw new AppError(400, 'El nombre no puede estar vacío');
-      }
       fields.name = name.trim();
     }
 
     if (email !== undefined && email !== null) {
-      const cleanEmail = this._normalizeAndValidateEmail(email);
+      const cleanEmail = email.trim().toLowerCase();
       const existing = await authRepository.findUserByEmail(cleanEmail);
       if (existing && Number(existing.id) !== Number(userId)) {
         throw new AppError(409, 'El email ya está en uso por otro usuario');
@@ -316,7 +253,7 @@ class AuthService {
     }
 
     if (username !== undefined && username !== null) {
-      const cleanUsername = this._normalizeAndValidateUsername(username);
+      const cleanUsername = username.trim();
       const existing = await authRepository.findUserByUsername(cleanUsername);
       if (existing && Number(existing.id) !== Number(userId)) {
         throw new AppError(409, 'El nombre de usuario ya está en uso');
@@ -337,15 +274,11 @@ class AuthService {
 
   // --- ADMIN: Gestión de usuarios ---
   async adminCreateUser(email, username, name, roleName, password) {
-    logger.info(`[AuthService] Admin creando usuario: ${logger.maskEmail(email)} con rol ${roleName}`);
-
-    if (!email || !username || !name || typeof name !== 'string' || !name.trim()) {
-      throw new AppError(400, 'Email, nombre de usuario y nombre son requeridos');
-    }
-
-    const cleanEmail = this._normalizeAndValidateEmail(email);
-    const cleanUsername = this._normalizeAndValidateUsername(username);
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanUsername = username.trim();
     const cleanName = name.trim();
+
+    logger.info(`[AuthService] Admin creando usuario: ${logger.maskEmail(cleanEmail)} con rol ${roleName}`);
 
     const role = await authRepository.getRoleByName(roleName);
     if (!role) {
@@ -367,7 +300,6 @@ class AuthService {
 
     if (password !== undefined && password !== null && String(password).length > 0) {
       userPassword = String(password);
-      this._validatePasswordStrength(userPassword);
     } else {
       generatedPassword = this._generateSecureRandomPassword(16);
       userPassword = generatedPassword;
@@ -472,14 +404,11 @@ class AuthService {
     const dbFields = {};
 
     if (whitelisted.name !== undefined) {
-      if (typeof whitelisted.name !== 'string' || !whitelisted.name.trim()) {
-        throw new AppError(400, 'El nombre no puede estar vacío');
-      }
       dbFields.name = whitelisted.name.trim();
     }
 
     if (whitelisted.email !== undefined) {
-      const cleanEmail = this._normalizeAndValidateEmail(whitelisted.email);
+      const cleanEmail = whitelisted.email.trim().toLowerCase();
       const existingEmail = await authRepository.findUserByEmail(cleanEmail);
       if (existingEmail && Number(existingEmail.id) !== Number(userId)) {
         throw new AppError(409, 'El email ya está en uso por otro usuario');
@@ -488,7 +417,7 @@ class AuthService {
     }
 
     if (whitelisted.username !== undefined) {
-      const cleanUsername = this._normalizeAndValidateUsername(whitelisted.username);
+      const cleanUsername = whitelisted.username.trim();
       const existingUsername = await authRepository.findUserByUsername(cleanUsername);
       if (existingUsername && Number(existingUsername.id) !== Number(userId)) {
         throw new AppError(409, 'El nombre de usuario ya está en uso');

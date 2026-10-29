@@ -32,9 +32,11 @@ back/
 │   │   ├── auth.middleware.js             # Verifica JWT Bearer (typ==='access'), carga usuario con caché 60s y bloquea con 403 PASSWORD_CHANGE_REQUIRED si must_change_password=TRUE
 │   │   ├── role.middleware.js             # RBAC: authorize(...roles)
 │   │   ├── ownership.middleware.js        # Resuelve req.effectiveUserId y req.isViewer (?viewAs=)
+│   │   ├── validate.middleware.js         # Validación de esquemas Zod: validate({ body, params, query }) -> 400 con detalle por campo
 │   │   ├── resource-ownership.middleware.js # Anti-IDOR: assertOwnership(resourceType, getId, { write })
 │   │   ├── request-logger.middleware.js   # Log HTTP con reqId, método, ruta, status, duración y userId (sin emails)
 │   │   └── error-handler.middleware.js    # Manejador centralizado (AppError, Multer, CORS, 500 oculto + requestId)
+│   ├── validators/                # Esquemas Zod por módulo (common, auth, profile, year, month, week, income, saving, expense, challenge, category, payment-method, share, admin, summary)
 │   ├── routes/                    # Definición de endpoints (*.routes.js)
 │   ├── controllers/               # Orquestación HTTP (*.controller.js)
 │   ├── services/                  # Lógica de negocio (*.service.js)
@@ -56,10 +58,11 @@ Todo endpoint que opere sobre datos de un usuario debe aplicar los middlewares e
 1. `authenticate`: valida el JWT y pobla `req.user = { id, email, role }`.
 2. `resolveOwnership`: determina sobre qué usuario se consulta/opera y pobla `req.effectiveUserId` y `req.isViewer` (si es un `viewer` o un `admin` usando `?viewAs=`).
 3. `authorize('admin', 'regular')` (en rutas de escritura) o `{ write: true }` en `assertOwnership`.
-4. `assertOwnership(resourceType, getId, { write })`:
+4. `validate({ body, params, query })`: valida y transforma `req.body`, `req.params` y `req.query` con esquemas `zod` (de `src/validators/`). Si falla, responde `400 { success: false, message: 'Datos inválidos', errors: [{ field, message }] }`.
+5. `assertOwnership(resourceType, getId, { write })`:
    - Tipos soportados por `ownership.repository.js`: `'year'`, `'month'`, `'week'`, `'income'`, `'saving'`, `'budgetExpense'`, `'extraExpense'`, `'monthChallenge'`.
    - Si el recurso no existe o pertenece a otro usuario distinto de `req.effectiveUserId` (y no es `admin`), responde **`404 { success: false, message: 'Recurso no encontrado' }`**.
-   - Si al actualizar un gasto o ingreso cambia su `date` o `month_id`, el servicio **también** verifica que el nuevo `month_id` pertenezca a `effectiveUserId`.
+   - Si al actualizar un gasto o ingreso cambia su `date` o `month_id`, el servicio **también** verifica que el nuevo `month_id` pertenezca a `effectiveUserId` y que la fecha (`YYYY-MM-DD`) caiga dentro del año/mes indicado (`400` si no corresponde).
 
 ### Regla 2 — Uso de `req.effectiveUserId` en Controladores
 - Nunca uses `req.user.id` directamente para consultar o crear recursos financieros cuando la ruta pasa por `resolveOwnership`; usa siempre `const userId = req.effectiveUserId || req.user.id`.
@@ -94,4 +97,5 @@ npm run test:ownership             # Prueba de verificación de propiedad / anti
 npm run test:security              # Prueba de Helmet, Rate Limit, AppError, RequestId y ocultamiento 500
 npm run test:auth                  # Prueba de Refresh Tokens (cookie httpOnly, rotación, familias, caché 60s)
 npm run test:prompt7               # Prueba de categorías, gastos (category_id/payment_method), must_change_password y adminUpdateUser
+npm run test:prompt8               # Prueba de validación Zod por campo y correspondencia fecha-mes en gastos/ingresos
 ```
