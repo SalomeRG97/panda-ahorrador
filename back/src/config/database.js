@@ -2,6 +2,8 @@ const mysql = require('mysql2/promise');
 const config = require('./environment');
 const logger = require('./logger');
 
+const connectionLimit = config.db.connectionLimit || 4;
+
 const pool = mysql.createPool({
   host: config.db.host,
   port: config.db.port,
@@ -9,7 +11,10 @@ const pool = mysql.createPool({
   password: config.db.password,
   database: config.db.database,
   waitForConnections: true,
-  connectionLimit: 10,
+  connectionLimit,
+  maxIdle: connectionLimit,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000,
   queueLimit: 0,
   dateStrings: true
 });

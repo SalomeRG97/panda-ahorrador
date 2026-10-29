@@ -1,8 +1,11 @@
 const express = require('express');
 const cors = require('cors');
+const fs = require('fs');
 const path = require('path');
 const config = require('./config/environment');
+const pool = require('./config/database');
 const logger = require('./config/logger');
+const { version } = require('../package.json');
 const requestLogger = require('./middlewares/request-logger.middleware');
 const errorHandler = require('./middlewares/error-handler.middleware');
 
@@ -27,18 +30,25 @@ const shortcutsRoutes = require('./routes/shortcuts.routes');
 const app = express();
 
 // Middlewares globales
-const allowedOrigins = [
-  'http://localhost:4200',
-  'https://panda-ahorrador-front.onrender.com',
-  process.env.CLIENT_URL
-].filter(Boolean);
+const clientOrigins = (config.clientUrl || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const allowedOrigins = Array.from(
+  new Set([
+    'http://localhost:4200',
+    'https://panda-ahorrador-front.onrender.com',
+    ...clientOrigins,
+  ])
+);
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(null, true);
+      callback(new Error('Origen no permitido por CORS'), false);
     }
   },
   credentials: true
@@ -50,12 +60,43 @@ app.use(requestLogger);
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Ruta de comprobación de estado (Health Check)
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    app: '熊猫理财 El panda ahorrador API',
-    timestamp: new Date()
-  });
+const HEALTH_CHECK_TIMEOUT_MS = 3000;
+
+app.get('/api/health', async (req, res) => {
+  let timeoutId;
+  try {
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error('Database health check timeout'));
+      }, HEALTH_CHECK_TIMEOUT_MS);
+    });
+
+    await Promise.race([
+      pool.query({ sql: 'SELECT 1', timeout: HEALTH_CHECK_TIMEOUT_MS }),
+      timeoutPromise,
+    ]);
+
+    res.status(200).json({
+      status: 'ok',
+      db: 'ok',
+      version,
+      uptime: process.uptime(),
+      app: '熊猫理财 El panda ahorrador API',
+      timestamp: new Date(),
+    });
+  } catch (error) {
+    logger.error(`[HealthCheck] Fallo de conexión a la BD: ${error.message}`);
+    res.status(503).json({
+      status: 'error',
+      db: 'down',
+      version,
+      uptime: process.uptime(),
+      app: '熊猫理财 El panda ahorrador API',
+      timestamp: new Date(),
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 });
 
 // Rutas de autenticación (públicas y protegidas)
@@ -76,6 +117,19 @@ app.use('/api/challenges', challengeRoutes);
 app.use('/api/summary', summaryRoutes);
 app.use('/api/shortcuts', shortcutsRoutes);
 
+// Servir frontend compilado (React + Vite) en producción / Docker
+const frontendDistPath = path.join(__dirname, '../../front/dist');
+if (fs.existsSync(frontendDistPath)) {
+  app.use(express.static(frontendDistPath));
+
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+      return next();
+    }
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
+  });
+}
+
 // Handling 404
 app.use((req, res, next) => {
   res.status(404).json({ success: false, message: `Ruta no encontrada: ${req.originalUrl}` });
@@ -83,14 +137,5 @@ app.use((req, res, next) => {
 
 // Middleware global de manejo de errores
 app.use(errorHandler);
-
-// Iniciar servidor
-app.listen(config.port, () => {
-  logger.info(`===========================================================`);
-  logger.info(`🌸 熊猫理财 El panda ahorrador - Backend API corriendo en http://localhost:${config.port}`);
-  logger.info(`🗄️ Base de datos: MySQL CleverCloud (${config.db.database})`);
-  logger.info(`🔐 Autenticación: JWT habilitado`);
-  logger.info(`===========================================================`);
-});
 
 module.exports = app;
