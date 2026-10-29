@@ -58,7 +58,7 @@ CLIENT_URL=https://panda-ahorrador-front.onrender.com
 ### 3.1 Checklist Pre-Deploy
 - [ ] `cd front && npm run build` compila sin errores de TypeScript (`tsc -b && vite build`).
 - [ ] `git status` limpio; no hay archivos `.env`, `logs/` ni credenciales en el commit.
-- [ ] Si el cambio incluye alteraciones de esquema SQL, el script de migración fue ejecutado y verificado.
+- [ ] Si el cambio incluye alteraciones de esquema SQL (`back/database/migrations/`), ejecutar `cd back && npm run migrate-new` contra MySQL antes o durante el despliegue.
 - [ ] Los archivos de memoria (`AGENTS.md`, `progress-tracker`, `decision-log`, `deploy-runbook`) están actualizados.
 
 ### 3.2 Despliegue Automático (Render conectado a GitHub)

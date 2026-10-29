@@ -22,7 +22,7 @@ const ready = (async () => {
     `SELECT COUNT(*) AS c FROM INFORMATION_SCHEMA.COLUMNS
      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'budget_expenses' AND COLUMN_NAME = 'recurrence_id'`
   );
-  if (!cols[0].c) {
+  if (!cols?.[0]?.c) {
     await db.query(
       'ALTER TABLE budget_expenses ADD COLUMN recurrence_id INT NULL, ADD INDEX idx_be_recurrence (recurrence_id)'
     );
