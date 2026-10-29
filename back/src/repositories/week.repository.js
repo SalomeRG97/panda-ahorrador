@@ -26,14 +26,25 @@ class WeekRepository {
     return result.insertId;
   }
 
-  async findWeekByDate(dateStr, monthId) {
-    logger.debug(`[WeekRepository] Buscando semana para la fecha: ${dateStr} (mes ID: ${monthId})`);
+  async findWeekByDate(dateStr, monthId, userId = null) {
+    logger.debug(`[WeekRepository] Buscando semana para la fecha: ${dateStr} (mes ID: ${monthId}, user ID: ${userId})`);
     if (monthId) {
       const [rows] = await db.query(
         'SELECT * FROM weeks WHERE month_id = ? AND start_date <= ? AND end_date >= ?',
         [monthId, dateStr, dateStr]
       );
       if (rows.length > 0) return rows[0];
+    }
+    if (userId) {
+      const [userRows] = await db.query(
+        `SELECT w.* FROM weeks w
+         JOIN months m ON w.month_id = m.id
+         JOIN years y ON m.year_id = y.id
+         WHERE y.user_id = ? AND w.start_date <= ? AND w.end_date >= ?
+         ORDER BY w.id ASC LIMIT 1`,
+        [userId, dateStr, dateStr]
+      );
+      if (userRows.length > 0) return userRows[0];
     }
     const [rows] = await db.query(
       'SELECT * FROM weeks WHERE start_date <= ? AND end_date >= ? ORDER BY id ASC LIMIT 1',

@@ -6,16 +6,17 @@ class ExpenseController {
   // GASTOS PRESUPUESTADOS
   async createBudget(req, res, next) {
     try {
-      logger.info('[ExpenseController] POST /api/expenses/budget');
+      const userId = req.effectiveUserId || req.user.id;
+      logger.info(`[ExpenseController] POST /api/expenses/budget (userId: ${userId})`);
       if (req.body.recurrence && req.body.recurrence.frequency) {
         const { date, concept, budget_amount, category_id, month_id } = req.body;
         if (!month_id || !category_id || !date || !concept || budget_amount == null) {
           throw { statusCode: 400, message: 'Faltan campos obligatorios para el gasto presupuestado' };
         }
-        const result = await recurrenceService.createSeries(req.user.id, req.body);
+        const result = await recurrenceService.createSeries(userId, req.body);
         return res.status(201).json({ success: true, data: { id: null, ...req.body, ...result } });
       }
-      const id = await expenseService.createBudgetExpense(req.body);
+      const id = await expenseService.createBudgetExpense(req.body, userId);
       res.status(201).json({ success: true, data: { id, ...req.body } });
     } catch (error) {
       next(error);
@@ -25,8 +26,9 @@ class ExpenseController {
   async deleteBudgetSeries(req, res, next) {
     try {
       const { id } = req.params;
-      logger.info(`[ExpenseController] DELETE /api/expenses/budget/${id}/series`);
-      await recurrenceService.deleteSeriesFromExpense(req.user.id, parseInt(id, 10));
+      const userId = req.effectiveUserId || req.user.id;
+      logger.info(`[ExpenseController] DELETE /api/expenses/budget/${id}/series (userId: ${userId})`);
+      await recurrenceService.deleteSeriesFromExpense(userId, parseInt(id, 10));
       res.json({ success: true, message: 'Serie eliminada desde esta fecha' });
     } catch (error) {
       next(error);
@@ -38,7 +40,7 @@ class ExpenseController {
       const { id } = req.params;
       const userId = req.effectiveUserId || req.user.id;
       const scope = req.body.scope || 'single';
-      logger.info(`[ExpenseController] PUT /api/expenses/budget/${id} (scope: ${scope})`);
+      logger.info(`[ExpenseController] PUT /api/expenses/budget/${id} (scope: ${scope}, userId: ${userId})`);
       await recurrenceService.updateBudgetWithScope(userId, parseInt(id, 10), req.body, scope);
       res.json({ success: true, message: 'Gasto presupuestado actualizado' });
     } catch (error) {
@@ -51,7 +53,7 @@ class ExpenseController {
       const { id } = req.params;
       const userId = req.effectiveUserId || req.user.id;
       const scope = req.query.scope || req.body?.scope || 'single';
-      logger.info(`[ExpenseController] DELETE /api/expenses/budget/${id} (scope: ${scope})`);
+      logger.info(`[ExpenseController] DELETE /api/expenses/budget/${id} (scope: ${scope}, userId: ${userId})`);
       await recurrenceService.deleteBudgetWithScope(userId, parseInt(id, 10), scope);
       res.json({ success: true, message: 'Gasto presupuestado eliminado' });
     } catch (error) {
@@ -62,8 +64,9 @@ class ExpenseController {
   // GASTOS EXTRA
   async createExtra(req, res, next) {
     try {
-      logger.info('[ExpenseController] POST /api/expenses/extra');
-      const id = await expenseService.createExtraExpense(req.body);
+      const userId = req.effectiveUserId || req.user.id;
+      logger.info(`[ExpenseController] POST /api/expenses/extra (userId: ${userId})`);
+      const id = await expenseService.createExtraExpense(req.body, userId);
       res.status(201).json({ success: true, data: { id, ...req.body } });
     } catch (error) {
       next(error);
@@ -73,8 +76,9 @@ class ExpenseController {
   async updateExtra(req, res, next) {
     try {
       const { id } = req.params;
-      logger.info(`[ExpenseController] PUT /api/expenses/extra/${id}`);
-      await expenseService.updateExtraExpense(id, req.body);
+      const userId = req.effectiveUserId || req.user.id;
+      logger.info(`[ExpenseController] PUT /api/expenses/extra/${id} (userId: ${userId})`);
+      await expenseService.updateExtraExpense(id, req.body, userId);
       res.json({ success: true, message: 'Gasto extra actualizado' });
     } catch (error) {
       next(error);
@@ -84,8 +88,9 @@ class ExpenseController {
   async deleteExtra(req, res, next) {
     try {
       const { id } = req.params;
-      logger.info(`[ExpenseController] DELETE /api/expenses/extra/${id}`);
-      await expenseService.deleteExtraExpense(id);
+      const userId = req.effectiveUserId || req.user.id;
+      logger.info(`[ExpenseController] DELETE /api/expenses/extra/${id} (userId: ${userId})`);
+      await expenseService.deleteExtraExpense(id, userId);
       res.json({ success: true, message: 'Gasto extra eliminado' });
     } catch (error) {
       next(error);

@@ -16,7 +16,8 @@ function validateName(raw) {
 class PaymentMethodController {
   async getAll(req, res, next) {
     try {
-      const data = await repo.getAllForUser(req.user.id);
+      const userId = req.effectiveUserId || req.user.id;
+      const data = await repo.getAllForUser(userId);
       res.json({ success: true, data });
     } catch (error) {
       next(error);
@@ -25,11 +26,12 @@ class PaymentMethodController {
 
   async create(req, res, next) {
     try {
+      const userId = req.effectiveUserId || req.user.id;
       const name = validateName(req.body.name);
-      if (await repo.findByName(req.user.id, name)) {
+      if (await repo.findByName(userId, name)) {
         throw { statusCode: 409, message: 'Ya tienes un medio de pago con ese nombre' };
       }
-      const id = await repo.create(req.user.id, name);
+      const id = await repo.create(userId, name);
       res.status(201).json({ success: true, data: { id, name } });
     } catch (error) {
       next(error);
@@ -39,16 +41,17 @@ class PaymentMethodController {
   async update(req, res, next) {
     try {
       const id = parseInt(req.params.id, 10);
+      const userId = req.effectiveUserId || req.user.id;
       const name = validateName(req.body.name);
       const current = await repo.getById(id);
-      if (!current || current.user_id !== req.user.id) {
+      if (!current || Number(current.user_id) !== Number(userId)) {
         throw { statusCode: 404, message: 'Medio de pago no encontrado' };
       }
-      const dup = await repo.findByName(req.user.id, name);
+      const dup = await repo.findByName(userId, name);
       if (dup && dup.id !== id) {
         throw { statusCode: 409, message: 'Ya tienes un medio de pago con ese nombre' };
       }
-      await repo.rename(id, req.user.id, current.name, name);
+      await repo.rename(id, userId, current.name, name);
       res.json({ success: true, data: { id, name } });
     } catch (error) {
       next(error);
@@ -58,8 +61,9 @@ class PaymentMethodController {
   async delete(req, res, next) {
     try {
       const id = parseInt(req.params.id, 10);
+      const userId = req.effectiveUserId || req.user.id;
       const current = await repo.getById(id);
-      if (!current || current.user_id !== req.user.id) {
+      if (!current || Number(current.user_id) !== Number(userId)) {
         throw { statusCode: 404, message: 'Medio de pago no encontrado' };
       }
       await repo.delete(id);

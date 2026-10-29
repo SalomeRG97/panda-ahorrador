@@ -1,5 +1,6 @@
 const repo = require('../repositories/recurrence.repository');
 const expenseRepository = require('../repositories/expense.repository');
+const ownershipRepository = require('../repositories/ownership.repository');
 const expenseService = require('./expense.service');
 const logger = require('../config/logger');
 
@@ -40,7 +41,7 @@ function occurrencesInMonth(rule, year, month) {
       const last = parse(lastDay);
       let cursor = startDate;
       if (cursor < first) {
-        const diffDays = Math.floor((first - cursor) / DAY_MS);
+        const diffDays = Math.floor((first.getTime() - cursor.getTime()) / DAY_MS);
         cursor = new Date(cursor.getTime() + Math.floor(diffDays / step) * step * DAY_MS);
         while (cursor < first) cursor = new Date(cursor.getTime() + step * DAY_MS);
       }
@@ -141,38 +142,43 @@ class RecurrenceService {
       throw { statusCode: 404, message: 'Gasto presupuestado no encontrado' };
     }
 
+    const ownerId = await ownershipRepository.getBudgetExpenseOwnerId(expenseId);
+    if (!ownerId || (userId != null && Number(ownerId) !== Number(userId))) {
+      throw { statusCode: 404, message: 'Gasto presupuestado no encontrado' };
+    }
+
     if (!exp.recurrence_id || scope === 'single') {
       logger.info(`[RecurrenceService] Eliminando gasto individual ID ${expenseId}`);
-      await expenseRepository.deleteBudgetExpense(expenseId);
+      await expenseService.deleteBudgetExpense(expenseId, ownerId);
       return true;
     }
 
     if (scope === 'all') {
       logger.info(`[RecurrenceService] Eliminando toda la serie recurrente ID ${exp.recurrence_id}`);
       const rule = await repo.getById(exp.recurrence_id);
-      if (rule && rule.user_id === userId) {
+      if (rule && Number(rule.user_id) === Number(ownerId)) {
         await repo.deleteAllOccurrences(exp.recurrence_id);
         await repo.delete(exp.recurrence_id);
       } else {
-        await expenseRepository.deleteBudgetExpense(expenseId);
+        await expenseService.deleteBudgetExpense(expenseId, ownerId);
       }
       return true;
     }
 
     if (scope === 'future') {
       logger.info(`[RecurrenceService] Eliminando ocurrencias futuras de serie ID ${exp.recurrence_id} desde ${exp.date}`);
-      return await this.deleteSeriesFrom(userId, exp.recurrence_id, exp.date);
+      return await this.deleteSeriesFrom(ownerId, exp.recurrence_id, exp.date);
     }
 
     // Fallback por defecto
-    await expenseRepository.deleteBudgetExpense(expenseId);
+    await expenseService.deleteBudgetExpense(expenseId, ownerId);
     return true;
   }
 
   /** Elimina esta ocurrencia y las siguientes; las anteriores se conservan. */
   async deleteSeriesFrom(userId, recurrenceId, fromDate) {
     const rule = await repo.getById(recurrenceId);
-    if (!rule || rule.user_id !== userId) {
+    if (!rule || Number(rule.user_id) !== Number(userId)) {
       throw { statusCode: 404, message: 'Serie no encontrada' };
     }
     const from = String(fromDate).slice(0, 10);
@@ -199,15 +205,20 @@ class RecurrenceService {
       throw { statusCode: 404, message: 'Gasto presupuestado no encontrado' };
     }
 
+    const ownerId = await ownershipRepository.getBudgetExpenseOwnerId(expenseId);
+    if (!ownerId || (userId != null && Number(ownerId) !== Number(userId))) {
+      throw { statusCode: 404, message: 'Gasto presupuestado no encontrado' };
+    }
+
     if (!exp.recurrence_id || scope === 'single') {
       logger.info(`[RecurrenceService] Actualizando gasto individual ID ${expenseId}`);
-      return await expenseService.updateBudgetExpense(expenseId, data);
+      return await expenseService.updateBudgetExpense(expenseId, data, ownerId);
     }
 
     const rule = await repo.getById(exp.recurrence_id);
-    if (!rule || rule.user_id !== userId) {
+    if (!rule || Number(rule.user_id) !== Number(ownerId)) {
       // Si no pertenece al usuario o la regla fue borrada, actualiza solo este gasto
-      return await expenseService.updateBudgetExpense(expenseId, data);
+      return await expenseService.updateBudgetExpense(expenseId, data, ownerId);
     }
 
     const updatePayload = {
@@ -219,10 +230,11 @@ class RecurrenceService {
 
     if (scope === 'all') {
       logger.info(`[RecurrenceService] Actualizando toda la serie recurrente ID ${rule.id}`);
+      // Validar y actualizar primero el registro actual por si cambió de fecha o mes inválido
+      await expenseService.updateBudgetExpense(expenseId, data, ownerId);
       await repo.updateRule(rule.id, updatePayload);
       await repo.updateAllOccurrences(rule.id, updatePayload);
-      // El registro actual se actualiza también por si cambió de fecha o de valor real específico
-      await expenseService.updateBudgetExpense(expenseId, data);
+      await expenseService.updateBudgetExpense(expenseId, data, ownerId);
       return true;
     }
 
@@ -230,6 +242,9 @@ class RecurrenceService {
       const fromDate = String(exp.date).slice(0, 10);
       const ruleStartDate = String(rule.start_date).slice(0, 10);
       logger.info(`[RecurrenceService] Actualizando serie ID ${rule.id} desde fecha ${fromDate}`);
+
+      // Validar primero el gasto específico antes de dividir o actualizar la serie
+      await expenseService.updateBudgetExpense(expenseId, data, ownerId);
 
       if (fromDate <= ruleStartDate) {
         // Toda la serie ocurre a partir de esta fecha, actualizar regla completa y ocurrencias futuras
@@ -241,7 +256,7 @@ class RecurrenceService {
         prev.setUTCDate(prev.getUTCDate() - 1);
         await repo.setEndDate(rule.id, toStr(prev));
 
-        const newRuleId = await repo.create(userId, {
+        const newRuleId = await repo.create(ownerId, {
           category_id: updatePayload.category_id,
           concept: updatePayload.concept,
           budget_amount: updatePayload.budget_amount,
@@ -254,11 +269,11 @@ class RecurrenceService {
         await repo.updateOccurrencesFrom(rule.id, fromDate, newRuleId, updatePayload);
       }
       // Actualizar el gasto específico
-      await expenseService.updateBudgetExpense(expenseId, data);
+      await expenseService.updateBudgetExpense(expenseId, data, ownerId);
       return true;
     }
 
-    return await expenseService.updateBudgetExpense(expenseId, data);
+    return await expenseService.updateBudgetExpense(expenseId, data, ownerId);
   }
 }
 

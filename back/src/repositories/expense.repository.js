@@ -43,23 +43,23 @@ class ExpenseRepository {
     return rows;
   }
 
-  async createBudgetExpense({ month_id, week_id, category_id, date, concept, budget_amount, real_amount = 0, payment_method = '' }) {
+  async createBudgetExpense({ month_id, week_id = null, category_id, date, concept, budget_amount, real_amount = 0, payment_method = '' }) {
     logger.info(`[ExpenseRepository] Creando gasto presupuestado en mes ID ${month_id}: ${concept} ($${budget_amount})`);
     const [result] = await db.query(
       `INSERT INTO budget_expenses (month_id, week_id, category_id, date, concept, budget_amount, real_amount, payment_method) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [month_id, week_id, category_id, date, concept, budget_amount, real_amount, payment_method]
+      [month_id, week_id ?? null, category_id ?? null, date, concept, budget_amount, real_amount ?? 0, payment_method ?? '']
     );
     return result.insertId;
   }
 
-  async updateBudgetExpense(id, { category_id, date, concept, budget_amount, real_amount, week_id, payment_method }) {
+  async updateBudgetExpense(id, { month_id = null, category_id, date, concept, budget_amount, real_amount = 0, week_id = null, payment_method = null }) {
     logger.info(`[ExpenseRepository] Actualizando gasto presupuestado ID ${id}`);
     await db.query(
       `UPDATE budget_expenses 
-       SET category_id = ?, date = ?, concept = ?, budget_amount = ?, real_amount = ?, week_id = COALESCE(?, week_id), payment_method = COALESCE(?, payment_method) 
+       SET month_id = COALESCE(?, month_id), category_id = ?, date = ?, concept = ?, budget_amount = ?, real_amount = ?, week_id = COALESCE(?, week_id), payment_method = COALESCE(?, payment_method) 
        WHERE id = ?`,
-      [category_id, date, concept, budget_amount, real_amount, week_id, payment_method, id]
+      [month_id ?? null, category_id ?? null, date, concept, budget_amount, real_amount ?? 0, week_id ?? null, payment_method ?? null, id]
     );
     return true;
   }
@@ -119,25 +119,30 @@ class ExpenseRepository {
     return rows;
   }
 
-  async createExtraExpense({ month_id, week_id, category_id, date, concept, amount, payment_method = '' }) {
+  async createExtraExpense({ month_id, week_id = null, category_id, date, concept, amount, payment_method = '' }) {
     logger.info(`[ExpenseRepository] Creando gasto extra en mes ID ${month_id}: ${concept} ($${amount})`);
     const [result] = await db.query(
       `INSERT INTO extra_expenses (month_id, week_id, category_id, date, concept, amount, payment_method) 
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [month_id, week_id, category_id, date, concept, amount, payment_method]
+      [month_id, week_id ?? null, category_id ?? null, date, concept, amount, payment_method ?? '']
     );
     return result.insertId;
   }
 
-  async updateExtraExpense(id, { category_id, date, concept, amount, week_id, payment_method }) {
+  async updateExtraExpense(id, { month_id = null, category_id, date, concept, amount, week_id = null, payment_method = null }) {
     logger.info(`[ExpenseRepository] Actualizando gasto extra ID ${id}`);
     await db.query(
       `UPDATE extra_expenses 
-       SET category_id = ?, date = ?, concept = ?, amount = ?, week_id = COALESCE(?, week_id), payment_method = COALESCE(?, payment_method) 
+       SET month_id = COALESCE(?, month_id), category_id = ?, date = ?, concept = ?, amount = ?, week_id = COALESCE(?, week_id), payment_method = COALESCE(?, payment_method) 
        WHERE id = ?`,
-      [category_id, date, concept, amount, week_id, payment_method, id]
+      [month_id ?? null, category_id ?? null, date, concept, amount, week_id ?? null, payment_method ?? null, id]
     );
     return true;
+  }
+
+  async getExtraExpenseById(id) {
+    const [rows] = await db.query('SELECT * FROM extra_expenses WHERE id = ?', [id]);
+    return rows[0] || null;
   }
 
   async deleteExtraExpense(id) {

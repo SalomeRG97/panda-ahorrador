@@ -2,6 +2,7 @@ const yearRepository = require('../repositories/year.repository');
 const monthRepository = require('../repositories/month.repository');
 const weekRepository = require('../repositories/week.repository');
 const challengeRepository = require('../repositories/challenge.repository');
+const ownershipRepository = require('../repositories/ownership.repository');
 const { getMonthName, getDaysInMonth, calculateWeeksForMonth } = require('../utils/date-helpers');
 const recurrenceService = require('./recurrence.service');
 const logger = require('../config/logger');
@@ -67,7 +68,11 @@ class YearService {
 
   async deleteYear(id, userId) {
     logger.info(`[YearService] Eliminando año ID: ${id}`);
-    return await yearRepository.delete(id, userId);
+    const ownerId = await ownershipRepository.getYearOwnerId(id);
+    if (!ownerId || (userId != null && Number(ownerId) !== Number(userId))) {
+      throw { statusCode: 404, message: 'Año no encontrado' };
+    }
+    return await yearRepository.delete(id, ownerId);
   }
 }
 

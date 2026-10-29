@@ -11,6 +11,11 @@ class IncomeRepository {
     return rows;
   }
 
+  async getById(id) {
+    const [rows] = await db.query('SELECT * FROM incomes WHERE id = ?', [id]);
+    return rows[0] || null;
+  }
+
   async create(monthId, date, concept, amount) {
     logger.info(`[IncomeRepository] Creando ingreso en mes ID ${monthId}: ${concept} ($${amount})`);
     const [result] = await db.query(
@@ -20,11 +25,11 @@ class IncomeRepository {
     return result.insertId;
   }
 
-  async update(id, date, concept, amount) {
+  async update(id, date, concept, amount, monthId = null) {
     logger.info(`[IncomeRepository] Actualizando ingreso ID ${id}`);
     await db.query(
-      'UPDATE incomes SET date = ?, concept = ?, amount = ? WHERE id = ?',
-      [date, concept, amount, id]
+      'UPDATE incomes SET month_id = COALESCE(?, month_id), date = ?, concept = ?, amount = ? WHERE id = ?',
+      [monthId ?? null, date, concept, amount, id]
     );
     return true;
   }

@@ -4,6 +4,7 @@ const logger = require('./logger');
 
 const connectionLimit = config.db.connectionLimit || 4;
 
+/** @type {any} */
 const pool = mysql.createPool({
   host: config.db.host,
   port: config.db.port,

@@ -39,6 +39,10 @@ class CategoryService {
       throw { statusCode: 404, message: 'Categoría no encontrada' };
     }
 
+    if (category.user_id && userId != null && Number(category.user_id) !== Number(userId)) {
+      throw { statusCode: 404, message: 'Categoría no encontrada' };
+    }
+
     await categoryRepository.update(id, data);
     return await categoryRepository.getById(id);
   }
@@ -55,7 +59,7 @@ class CategoryService {
       throw { statusCode: 403, message: 'No puedes eliminar las categorías predeterminadas del sistema' };
     }
 
-    if (category.user_id && category.user_id !== userId) {
+    if (category.user_id && Number(category.user_id) !== Number(userId)) {
       throw { statusCode: 403, message: 'No tienes permiso para eliminar esta categoría' };
     }
 

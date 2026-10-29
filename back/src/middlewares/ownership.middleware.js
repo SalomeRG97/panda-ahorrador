@@ -35,6 +35,7 @@ const resolveOwnership = async (req, res, next) => {
         // Usar el primer owner por defecto
         req.effectiveUserId = shares[0].owner_id;
         req.availableOwners = shares.map(s => s.owner_id);
+        req.isViewer = true;
         return next();
       }
 

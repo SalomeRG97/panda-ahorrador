@@ -27,7 +27,7 @@ class YearController {
   async create(req, res, next) {
     try {
       const { year, startMonth } = req.body;
-      const userId = req.user.id;
+      const userId = req.effectiveUserId || req.user.id;
       logger.info(`[YearController] POST /api/years -> Year: ${year}, StartMonth: ${startMonth}, userId: ${userId}`);
       if (!year || !startMonth) {
         return res.status(400).json({ success: false, message: 'Año y mes de inicio son requeridos' });
@@ -42,8 +42,8 @@ class YearController {
   async delete(req, res, next) {
     try {
       const { id } = req.params;
-      const userId = req.user.id;
-      logger.info(`[YearController] DELETE /api/years/${id}`);
+      const userId = req.effectiveUserId || req.user.id;
+      logger.info(`[YearController] DELETE /api/years/${id} (userId: ${userId})`);
       await yearService.deleteYear(id, userId);
       res.json({ success: true, message: 'Año eliminado correctamente' });
     } catch (error) {

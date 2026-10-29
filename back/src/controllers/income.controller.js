@@ -17,8 +17,9 @@ class IncomeController {
     try {
       const monthId = req.body.monthId || req.body.month_id;
       const { date, concept, amount } = req.body;
-      logger.info(`[IncomeController] POST /api/incomes -> Mes: ${monthId}, Concepto: ${concept}`);
-      const insertId = await incomeService.createIncome(monthId, date, concept, amount);
+      const userId = req.effectiveUserId || req.user.id;
+      logger.info(`[IncomeController] POST /api/incomes -> Mes: ${monthId}, Concepto: ${concept}, userId: ${userId}`);
+      const insertId = await incomeService.createIncome(monthId, date, concept, amount, userId);
       res.status(201).json({ success: true, data: { id: insertId, month_id: monthId, monthId, date, concept, amount } });
     } catch (error) {
       next(error);
@@ -29,8 +30,10 @@ class IncomeController {
     try {
       const { id } = req.params;
       const { date, concept, amount } = req.body;
-      logger.info(`[IncomeController] PUT /api/incomes/${id}`);
-      await incomeService.updateIncome(id, date, concept, amount);
+      const monthId = req.body.monthId || req.body.month_id;
+      const userId = req.effectiveUserId || req.user.id;
+      logger.info(`[IncomeController] PUT /api/incomes/${id} (userId: ${userId})`);
+      await incomeService.updateIncome(id, date, concept, amount, userId, monthId);
       res.json({ success: true, message: 'Ingreso actualizado' });
     } catch (error) {
       next(error);
@@ -40,8 +43,9 @@ class IncomeController {
   async delete(req, res, next) {
     try {
       const { id } = req.params;
-      logger.info(`[IncomeController] DELETE /api/incomes/${id}`);
-      await incomeService.deleteIncome(id);
+      const userId = req.effectiveUserId || req.user.id;
+      logger.info(`[IncomeController] DELETE /api/incomes/${id} (userId: ${userId})`);
+      await incomeService.deleteIncome(id, userId);
       res.json({ success: true, message: 'Ingreso eliminado' });
     } catch (error) {
       next(error);
@@ -50,9 +54,11 @@ class IncomeController {
 
   async setSaving(req, res, next) {
     try {
-      const { monthId, amount } = req.body;
-      logger.info(`[IncomeController] POST /api/incomes/saving -> Mes ${monthId}, Ahorro: ${amount}`);
-      await incomeService.setMonthSaving(monthId, amount);
+      const monthId = req.body.monthId || req.body.month_id;
+      const { amount } = req.body;
+      const userId = req.effectiveUserId || req.user.id;
+      logger.info(`[IncomeController] POST /api/incomes/saving -> Mes ${monthId}, Ahorro: ${amount}, userId: ${userId}`);
+      await incomeService.setMonthSaving(monthId, amount, userId);
       res.json({ success: true, message: 'Ahorro actualizado correctamente' });
     } catch (error) {
       next(error);

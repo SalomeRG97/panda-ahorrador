@@ -8,7 +8,8 @@
     "dev": "nodemon src/server.js",
     "init-db": "node src/scripts/init-db.js",
     "migrate-auth": "node src/scripts/run-auth-migration.js",
-    "migrate-new": "node src/scripts/run-new-migrations.js"
+    "migrate-new": "node src/scripts/run-new-migrations.js",
+    "test:ownership": "node src/scripts/test-ownership.js"
   },
   "keywords": [
     "finance",

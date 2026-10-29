@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const logger = require('../config/logger');
+const ownershipRepository = require('./ownership.repository');
 
 class AuthRepository {
   // --- USERS ---
@@ -160,31 +161,17 @@ class AuthRepository {
     return rows.length > 0;
   }
 
-  // --- UTILIDAD: verificar propiedad de un año ---
+  // --- UTILIDAD: verificar propiedad (delegado a ownership.repository) ---
   async getYearOwnerId(yearId) {
-    const [rows] = await db.query('SELECT user_id FROM years WHERE id = ?', [yearId]);
-    return rows[0] ? rows[0].user_id : null;
+    return ownershipRepository.getYearOwnerId(yearId);
   }
 
-  // --- UTILIDAD: verificar propiedad de un mes (via year) ---
   async getMonthOwnerId(monthId) {
-    const [rows] = await db.query(
-      'SELECT y.user_id FROM months m JOIN years y ON m.year_id = y.id WHERE m.id = ?',
-      [monthId]
-    );
-    return rows[0] ? rows[0].user_id : null;
+    return ownershipRepository.getMonthOwnerId(monthId);
   }
 
-  // --- UTILIDAD: verificar propiedad de una semana (via month -> year) ---
   async getWeekOwnerId(weekId) {
-    const [rows] = await db.query(
-      `SELECT y.user_id FROM weeks w 
-       JOIN months m ON w.month_id = m.id 
-       JOIN years y ON m.year_id = y.id 
-       WHERE w.id = ?`,
-      [weekId]
-    );
-    return rows[0] ? rows[0].user_id : null;
+    return ownershipRepository.getWeekOwnerId(weekId);
   }
 
   // --- UTILIDAD: user_id del password_hash ---
