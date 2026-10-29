@@ -9,6 +9,8 @@
 ```text
 back/
 ├── database/                      # Esquema SQL e historial de migraciones SQL
+│   ├── migrations/
+│   │   └── 001-refresh-tokens.sql # Tabla refresh_tokens (token_hash SHA-256, family_id, expires_at, revoked_at)
 │   ├── schema.sql                 # Tablas base del sistema y seeds de categorías/retos
 │   ├── auth-migration.sql         # Tablas roles, users, user_shares y columna years.user_id
 │   ├── user-categories-migration.sql
@@ -26,7 +28,7 @@ back/
 │   ├── middlewares/
 │   │   ├── request-id.middleware.js       # Genera/propaga req.id (UUID) y cabecera X-Request-Id
 │   │   ├── rate-limit.middleware.js       # Rate limiters (login IP+email, register, refresh y global /api)
-│   │   ├── auth.middleware.js             # Verifica JWT Bearer y adjunta req.user
+│   │   ├── auth.middleware.js             # Verifica JWT Bearer (typ==='access'), carga usuario desde BD con caché 60s y adjunta req.user
 │   │   ├── role.middleware.js             # RBAC: authorize(...roles)
 │   │   ├── ownership.middleware.js        # Resuelve req.effectiveUserId y req.isViewer (?viewAs=)
 │   │   ├── resource-ownership.middleware.js # Anti-IDOR: assertOwnership(resourceType, getId, { write })
@@ -89,4 +91,5 @@ npm run dev                        # Servidor en desarrollo con nodemon (src/ser
 npm start                          # Servidor en producción (node src/server.js)
 npm run test:ownership             # Prueba de verificación de reglas de propiedad / anti-IDOR
 npm run test:security              # Prueba de Helmet, Rate Limit, AppError, RequestId y ocultamiento 500
+npm run test:auth                  # Prueba de Refresh Tokens (cookie httpOnly, rotación, familias, caché 60s)
 ```

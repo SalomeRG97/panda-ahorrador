@@ -48,12 +48,18 @@ description: >-
   - Creada clase `AppError` en `back/src/utils/app-error.js` y migrados todos los `throw { statusCode, message }` del backend.
   - Reescrito `error-handler.middleware.js` junto con `request-id.middleware.js` (`X-Request-Id`), manejo de `MulterError` (`LIMIT_FILE_SIZE` → `400`), `CORS` (`403`) y ocultamiento de detalles/stack en errores 500.
   - Eliminado registro de emails en texto plano en nivel `info` en `request-logger`, repositorios, servicios y controladores usando `userId` y `logger.maskEmail` (`j***@dominio.com`).
+- [x] **Prompt 6 (Refresh Tokens Opacos, Rotación por Familias, Cookie `httpOnly`, Caché de Usuario 60s y Cola 401 en Axios):**
+  - Creada migración `back/database/migrations/001-refresh-tokens.sql` (`refresh_tokens`: `id`, `user_id` FK CASCADE, `token_hash` CHAR(64) UNIQUE, `family_id` CHAR(36), `expires_at`, `revoked_at`, `created_at`, `user_agent`, `ip`, `INDEX(user_id)`).
+  - Separado criptográficamente el Access Token (`JWT_ACCESS_SECRET`, `typ: 'access'`, payload `{ sub, role }`, `15m`) del Refresh Token (64 bytes aleatorios con `crypto.randomBytes`, hash SHA-256 en BD, enviado en cookie `httpOnly`, `Secure`/`SameSite=None` en prod y `Lax` en dev, `path=/api/auth`, `maxAge=7d`).
+  - Implementada rotación en `POST /api/auth/refresh` y revocación completa de la familia (`family_id`) si se reutiliza un token ya revocado.
+  - Creados endpoints `POST /api/auth/logout` y `POST /api/auth/logout-all`, y revocación automática de todos los refresh tokens al cambiar contraseña o desactivar un usuario desde admin.
+  - Actualizado `auth.middleware.js` para exigir `typ === 'access'`, cargar el usuario desde BD con caché en memoria de 60 s (`is_active` y rol real desde BD).
+  - En el frontend (`front/src/services/api.ts`, `AuthContext.tsx`, `ProtectedRoute.tsx`, `SettingsPage.tsx`): `withCredentials: true`, access token solo en memoria, recuperación inicial de sesión vía `/auth/refresh` con loader, cola de refresh único para 401 concurrentes, eliminación de `panda_access_token`/`panda_refresh_token` de `localStorage`, y botón `"Cerrar sesión en todos los dispositivos"`.
 
 ---
 
 ## 🔴 En Progreso / Próximo Paso: Fase 1 — Seguridad Base
 
-- [ ] **Prompt 6:** Separación criptográfica entre Access Token y Refresh Token, tabla `refresh_tokens` con rotación y revocación por familias, cookie `httpOnly`, endpoints `/api/auth/logout` y `/api/auth/logout-all`, y cola de refresh único en el interceptor Axios del frontend.
 - [ ] **Prompt 7:** Reglas de negocio en categorías (bloquear edición de globales a no-admin, validar hex/icono y pertenencia de `category_id` al crear gastos), eliminar contraseña fija `'Temporal123!'` en creación por admin y agregar flujo `must_change_password`.
 - [ ] **Prompt 8:** Validación centralizada de entrada con `zod` (`validate.middleware.js` y esquemas en `back/src/validators/`).
 

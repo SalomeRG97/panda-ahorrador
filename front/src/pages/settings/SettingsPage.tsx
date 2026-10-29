@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { ApiService } from '../../services/api.service';
@@ -8,8 +9,9 @@ import { getAvatarUrl } from '../../config/environment';
 import { ModalPortal } from '../../components/common/ModalPortal';
 
 export const SettingsPage: React.FC = () => {
-  const { currentUser, reloadProfile } = useAuth();
+  const { currentUser, reloadProfile, logoutAll } = useAuth();
   const { success, error, warning, confirm } = useToast();
+  const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState<'profile' | 'categories' | 'paymentMethods'>('profile');
 
@@ -25,6 +27,7 @@ export const SettingsPage: React.FC = () => {
 
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [loadingPassword, setLoadingPassword] = useState(false);
+  const [loadingLogoutAll, setLoadingLogoutAll] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   // Categorías
@@ -162,6 +165,19 @@ export const SettingsPage: React.FC = () => {
       error(err.response?.data?.message || 'Error al cambiar la contraseña');
     } finally {
       setLoadingPassword(false);
+    }
+  };
+
+  const handleLogoutAllDevices = async () => {
+    setLoadingLogoutAll(true);
+    try {
+      await logoutAll();
+      success('Sesión cerrada en todos los dispositivos 🔒');
+      navigate('/login');
+    } catch (err: any) {
+      error(err.response?.data?.message || 'Error al cerrar sesiones');
+    } finally {
+      setLoadingLogoutAll(false);
     }
   };
 
@@ -406,6 +422,29 @@ export const SettingsPage: React.FC = () => {
                 )}
               </button>
             </form>
+
+            <div style={{ marginTop: '24px', paddingTop: '18px', borderTop: '2px solid #FFF0F4', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h4 style={{ margin: '0 0 4px 0', color: 'var(--text-dark)', fontSize: '0.95rem' }}>
+                  <i className="fa-solid fa-laptop-medical"></i> Sesiones Activas
+                </h4>
+                <p className="subtitle" style={{ margin: 0 }}>
+                  Revoca todos los tokens de acceso y cierra tu cuenta en cualquier otro navegador o dispositivo.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleLogoutAllDevices}
+                className="btn-pastel btn-primary-pastel"
+                disabled={loadingLogoutAll}
+              >
+                {loadingLogoutAll ? (
+                  <><i className="fa-solid fa-spinner fa-spin"></i> Cerrando sesiones...</>
+                ) : (
+                  <><i className="fa-solid fa-right-from-bracket"></i> Cerrar sesión en todos los dispositivos</>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

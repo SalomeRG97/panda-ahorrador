@@ -10,7 +10,8 @@
     "migrate-auth": "node src/scripts/run-auth-migration.js",
     "migrate-new": "node src/scripts/run-new-migrations.js",
     "test:ownership": "node src/scripts/test-ownership.js",
-    "test:security": "node src/scripts/test-security-base.js"
+    "test:security": "node src/scripts/test-security-base.js",
+    "test:auth": "node src/scripts/test-refresh-tokens.js"
   },
   "keywords": [
     "finance",
@@ -23,6 +24,7 @@
   "license": "ISC",
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",

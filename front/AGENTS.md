@@ -19,7 +19,7 @@ front/
     ├── config/
     │   └── environment.ts               # Exporta API_BASE_URL desde import.meta.env.VITE_API_URL
     ├── context/
-    │   ├── AuthContext.tsx              # Estado global de sesión, usuario actual y helpers de rol
+    │   ├── AuthContext.tsx              # Estado global de sesión (auto-refresh inicial con loader, logout y logoutAll)
     │   └── ToastContext.tsx             # Notificaciones emergentes (success, error, warning, info)
     ├── components/
     │   ├── PaymentMethodSelect.tsx      # Selector reutilizable de medios de pago
@@ -40,7 +40,7 @@ front/
     │   ├── share/                       # ShareManagementPage.tsx (compartir finanzas con viewers)
     │   └── admin/                       # UserManagementPage.tsx (CRUD administrativo de usuarios)
     ├── services/
-    │   ├── api.ts                       # Instancia Axios + interceptores Bearer y auto-refresh en 401
+    │   ├── api.ts                       # Instancia Axios (withCredentials: true), accessToken en memoria y cola única de refresh en 401
     │   ├── api.service.ts               # Cliente de negocio (años, meses, semanas, gastos, ingresos, retos, resumen)
     │   ├── auth.service.ts              # Cliente de autenticación, perfil, admin y compartición
     │   └── email.service.ts             # Servicio auxiliar de correo (pendiente de migrar al backend)

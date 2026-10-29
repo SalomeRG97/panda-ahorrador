@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
 const fs = require('fs');
 const path = require('path');
 const config = require('./config/environment');
@@ -68,6 +69,7 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json({ limit: '100kb' }));
+app.use(cookieParser());
 app.use(requestLogger);
 
 // Servir archivos estáticos (avatares)

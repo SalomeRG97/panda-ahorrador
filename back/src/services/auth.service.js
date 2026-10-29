@@ -1,37 +1,50 @@
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const authRepository = require('../repositories/auth.repository');
 const config = require('../config/environment');
 const logger = require('../config/logger');
 const AppError = require('../utils/app-error');
+const { invalidateUserCache } = require('../middlewares/auth.middleware');
 
 const SALT_ROUNDS = 12;
+const REFRESH_TOKEN_BYTES = 64;
+const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 días
+
+function toMySqlUtcDatetime(date) {
+  return date.toISOString().slice(0, 19).replace('T', ' ');
+}
+
+function parseMySqlUtcDatetime(val) {
+  if (val instanceof Date) return val;
+  const str = String(val).trim();
+  if (str.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(str)) {
+    return new Date(str);
+  }
+  return new Date(`${str.replace(' ', 'T')}Z`);
+}
 
 class AuthService {
   // --- REGISTRO ---
-  async register(email, username, password, name) {
+  async register(email, username, password, name, meta = {}) {
     logger.info(`[AuthService] Registrando nuevo usuario: ${logger.maskEmail(email)}`);
 
-    // Validaciones
     if (!email || !username || !password || !name) {
       throw new AppError(400, 'Todos los campos son requeridos');
     }
 
     this._validatePasswordStrength(password);
 
-    // Verificar email duplicado
     const existingEmail = await authRepository.findUserByEmail(email);
     if (existingEmail) {
       throw new AppError(409, 'El email ya está registrado');
     }
 
-    // Verificar username duplicado
     const existingUsername = await authRepository.findUserByUsername(username);
     if (existingUsername) {
       throw new AppError(409, 'El nombre de usuario ya está en uso');
     }
 
-    // Obtener rol 'regular'
     const role = await authRepository.getRoleByName('regular');
     if (!role) {
       throw new AppError(500, 'Error de configuración: rol regular no encontrado');
@@ -43,17 +56,18 @@ class AuthService {
       username,
       passwordHash,
       name,
-      roleId: role.id
+      roleId: role.id,
     });
 
     const user = await authRepository.findUserById(userId);
-    const tokens = this._generateTokens(user);
+    const accessToken = this._generateAccessToken(user);
+    const refreshToken = await this._issueRefreshToken(user.id, null, meta);
 
-    return { user: this._sanitizeUser(user), ...tokens };
+    return { user: this._sanitizeUser(user), accessToken, refreshToken };
   }
 
   // --- LOGIN ---
-  async login(email, password) {
+  async login(email, password, meta = {}) {
     logger.info(`[AuthService] Intento de login: ${logger.maskEmail(email)}`);
 
     const user = await authRepository.findUserByEmail(email);
@@ -70,28 +84,84 @@ class AuthService {
       throw new AppError(401, 'Credenciales inválidas');
     }
 
-    const tokens = this._generateTokens(user);
-    logger.info(`[AuthService] Login exitoso: usuario ID ${user.id} (${logger.maskEmail(email)}, rol: ${user.role_name})`);
+    const accessToken = this._generateAccessToken(user);
+    const refreshToken = await this._issueRefreshToken(user.id, null, meta);
+    logger.info(
+      `[AuthService] Login exitoso: usuario ID ${user.id} (${logger.maskEmail(email)}, rol: ${user.role_name})`
+    );
 
-    return { user: this._sanitizeUser(user), ...tokens };
+    return { user: this._sanitizeUser(user), accessToken, refreshToken };
   }
 
-  // --- REFRESH TOKEN ---
-  async refreshToken(refreshToken) {
-    try {
-      const decoded = jwt.verify(refreshToken, config.jwt.secret);
-      const user = await authRepository.findUserById(decoded.id);
+  // --- REFRESH TOKEN (con rotación y detección de reutilización por familia) ---
+  async refreshToken(rawRefreshToken, meta = {}) {
+    if (!rawRefreshToken || typeof rawRefreshToken !== 'string') {
+      throw new AppError(401, 'Token de refresco inválido o ausente');
+    }
 
-      if (!user || !user.is_active) {
-        throw new AppError(401, 'Token inválido');
-      }
+    const tokenHash = this._hashToken(rawRefreshToken);
+    const storedToken = await authRepository.findRefreshTokenByHash(tokenHash);
 
-      const tokens = this._generateTokens(user);
-      return { user: this._sanitizeUser(user), ...tokens };
-    } catch (error) {
-      if (error instanceof AppError || error.statusCode) throw error;
+    if (!storedToken) {
       throw new AppError(401, 'Token de refresco inválido o expirado');
     }
+
+    // Detección de reutilización: si el token ya estaba revocado, invalidar toda la familia
+    if (storedToken.revoked_at !== null && storedToken.revoked_at !== undefined) {
+      logger.warn(
+        `[AuthService] Reutilización de refresh token detectada (user_id=${storedToken.user_id}, family_id=${storedToken.family_id}). Revocando toda la familia.`
+      );
+      await authRepository.revokeRefreshTokenFamily(storedToken.family_id);
+      invalidateUserCache(storedToken.user_id);
+      throw new AppError(401, 'Sesión invalidada por reutilización de token');
+    }
+
+    // Verificar expiración
+    const expiresAt = parseMySqlUtcDatetime(storedToken.expires_at);
+    if (expiresAt <= new Date()) {
+      await authRepository.revokeRefreshTokenById(storedToken.id);
+      throw new AppError(401, 'Token de refresco expirado');
+    }
+
+    // Verificar usuario activo
+    const user = await authRepository.findUserById(storedToken.user_id);
+    if (!user || !user.is_active) {
+      await authRepository.revokeRefreshTokenFamily(storedToken.family_id);
+      invalidateUserCache(storedToken.user_id);
+      throw new AppError(401, 'Usuario inactivo o no autorizado');
+    }
+
+    // Rotación: revocar el actual y emitir uno nuevo de la misma familia
+    await authRepository.revokeRefreshTokenById(storedToken.id);
+    const newRefreshToken = await this._issueRefreshToken(
+      user.id,
+      storedToken.family_id,
+      meta
+    );
+    const accessToken = this._generateAccessToken(user);
+
+    return {
+      user: this._sanitizeUser(user),
+      accessToken,
+      refreshToken: newRefreshToken,
+    };
+  }
+
+  // --- LOGOUT ---
+  async logout(rawRefreshToken) {
+    if (rawRefreshToken && typeof rawRefreshToken === 'string') {
+      const tokenHash = this._hashToken(rawRefreshToken);
+      await authRepository.revokeRefreshTokenByHash(tokenHash);
+    }
+    return true;
+  }
+
+  // --- LOGOUT ALL ---
+  async logoutAll(userId) {
+    logger.info(`[AuthService] Cerrando todas las sesiones del usuario ID: ${userId}`);
+    await authRepository.revokeAllUserRefreshTokens(userId);
+    invalidateUserCache(userId);
+    return true;
   }
 
   // --- CAMBIAR CONTRASEÑA ---
@@ -112,6 +182,11 @@ class AuthService {
 
     const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
     await authRepository.updatePassword(userId, newHash);
+
+    // Revocar todos los refresh tokens del usuario al cambiar contraseña
+    await authRepository.revokeAllUserRefreshTokens(userId);
+    invalidateUserCache(userId);
+
     return true;
   }
 
@@ -145,7 +220,6 @@ class AuthService {
   async updateProfile(userId, { name, email, username }) {
     logger.info(`[AuthService] Actualizando perfil del usuario ID: ${userId}`);
 
-    // Verificar duplicados si cambian
     if (email) {
       const existing = await authRepository.findUserByEmail(email);
       if (existing && existing.id !== userId) {
@@ -166,6 +240,7 @@ class AuthService {
     if (username) fields.username = username;
 
     await authRepository.updateUser(userId, fields);
+    invalidateUserCache(userId);
     return await this.getProfile(userId);
   }
 
@@ -202,7 +277,7 @@ class AuthService {
       username,
       passwordHash,
       name,
-      roleId: role.id
+      roleId: role.id,
     });
 
     const user = await authRepository.findUserById(userId);
@@ -227,26 +302,38 @@ class AuthService {
     }
 
     await authRepository.updateUser(userId, fields);
+
+    if (fields.is_active === false || fields.is_active === 0) {
+      await authRepository.revokeAllUserRefreshTokens(userId);
+    }
+    invalidateUserCache(userId);
+
     const user = await authRepository.findUserById(userId);
     return this._sanitizeUser(user);
   }
 
   async adminDeleteUser(userId) {
-    logger.info(`[AuthService] Admin eliminando usuario ID: ${userId}`);
+    logger.info(`[AuthService] Admin eliminando (desactivando) usuario ID: ${userId}`);
     await authRepository.deactivateUser(userId);
+    await authRepository.revokeAllUserRefreshTokens(userId);
+    invalidateUserCache(userId);
     return true;
   }
 
   async toggleUserStatus(userId, isActive) {
     logger.info(`[AuthService] Admin cambiando estado de usuario ID ${userId} a active=${isActive}`);
     await authRepository.updateUser(userId, { is_active: isActive });
+    if (!isActive) {
+      await authRepository.revokeAllUserRefreshTokens(userId);
+    }
+    invalidateUserCache(userId);
     const user = await authRepository.findUserById(userId);
     return this._sanitizeUser(user);
   }
 
   async getAllUsers() {
     const users = await authRepository.getAllUsers();
-    return users.map(u => this._sanitizeUser(u));
+    return users.map((u) => this._sanitizeUser(u));
   }
 
   async getAllRoles() {
@@ -293,18 +380,38 @@ class AuthService {
   }
 
   // --- HELPERS PRIVADOS ---
-  _generateTokens(user) {
-    const payload = { id: user.id, email: user.email, role: user.role_name };
+  _generateAccessToken(user) {
+    const payload = {
+      sub: user.id,
+      role: user.role_name || user.role,
+      typ: 'access',
+    };
 
-    const accessToken = jwt.sign(payload, config.jwt.secret, {
-      expiresIn: config.jwt.expiresIn
+    return jwt.sign(payload, config.jwt.accessSecret, {
+      expiresIn: config.jwt.accessExpiresIn || '15m',
+    });
+  }
+
+  _hashToken(rawToken) {
+    return crypto.createHash('sha256').update(rawToken).digest('hex');
+  }
+
+  async _issueRefreshToken(userId, existingFamilyId = null, meta = {}) {
+    const rawToken = crypto.randomBytes(REFRESH_TOKEN_BYTES).toString('hex');
+    const tokenHash = this._hashToken(rawToken);
+    const familyId = existingFamilyId || crypto.randomUUID();
+    const expiresAt = toMySqlUtcDatetime(new Date(Date.now() + REFRESH_TOKEN_TTL_MS));
+
+    await authRepository.createRefreshToken({
+      userId,
+      tokenHash,
+      familyId,
+      expiresAt,
+      userAgent: meta.userAgent || null,
+      ip: meta.ip || null,
     });
 
-    const refreshToken = jwt.sign(payload, config.jwt.secret, {
-      expiresIn: config.jwt.refreshExpiresIn
-    });
-
-    return { accessToken, refreshToken };
+    return rawToken;
   }
 
   _sanitizeUser(user) {
@@ -318,7 +425,7 @@ class AuthService {
       avatarUrl: user.avatar_url,
       isActive: user.is_active,
       createdAt: user.created_at,
-      updatedAt: user.updated_at
+      updatedAt: user.updated_at,
     };
   }
 }

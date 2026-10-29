@@ -45,9 +45,9 @@ export const Navbar: React.FC = () => {
   const pendingCount = pendingExpenses.length;
   const totalBadgeCount = pendingCount + unreadNewsCount;
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setMobileMenuOpen(false);
-    logout();
+    await logout();
     navigate('/login');
   };
 

@@ -21,6 +21,11 @@ const config = require('../config/environment');
 
 // Estado en memoria simulando las tablas relacionales
 const state = {
+  users: [
+    { id: 1, email: 'a@test.com', username: 'usera', name: 'User A', role_name: 'regular', role_id: 2, is_active: true },
+    { id: 2, email: 'b@test.com', username: 'userb', name: 'User B', role_name: 'regular', role_id: 2, is_active: true },
+    { id: 3, email: 'viewer@test.com', username: 'viewer', name: 'Viewer', role_name: 'viewer', role_id: 3, is_active: true },
+  ],
   years: [
     { id: 10, year: 2026, start_month: 1, end_month: 12, user_id: 1 }, // Usuario A
     { id: 20, year: 2026, start_month: 1, end_month: 12, user_id: 2 }, // Usuario B
@@ -140,6 +145,12 @@ db.query = async (sqlRaw, params = []) => {
   }
   if (sql.includes('INFORMATION_SCHEMA.COLUMNS')) {
     return [[{ c: 1 }], []];
+  }
+
+  // --- USERS (para auth.middleware) ---
+  if (sql.includes('FROM users u') && sql.includes('WHERE u.id = ?')) {
+    const u = state.users.find((x) => x.id === Number(params[0]));
+    return [u ? [u] : [], []];
   }
 
   // --- OWNERSHIP QUERIES ---
@@ -422,7 +433,11 @@ db.query = async (sqlRaw, params = []) => {
 const app = require('../app');
 
 function makeToken(user) {
-  return jwt.sign(user, config.jwt.secret, { expiresIn: '1h' });
+  return jwt.sign(
+    { sub: user.id, role: user.role, typ: 'access' },
+    config.jwt.accessSecret,
+    { expiresIn: '15m' }
+  );
 }
 
 const tokenA = makeToken({ id: 1, email: 'a@test.com', role: 'regular' });

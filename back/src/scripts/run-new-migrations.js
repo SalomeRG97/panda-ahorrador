@@ -57,6 +57,19 @@ async function runNewMigrations() {
       console.error('⚠️ Detalle migración category_id NULL:', err.message);
     }
 
+    // 2d. Migración Refresh Tokens (001-refresh-tokens.sql)
+    const sqlRefreshTokensPath = path.join(__dirname, '../../database/migrations/001-refresh-tokens.sql');
+    if (fs.existsSync(sqlRefreshTokensPath)) {
+      const sqlRefreshTokens = fs.readFileSync(sqlRefreshTokensPath, 'utf8');
+      console.log('📜 Ejecutando migrations/001-refresh-tokens.sql...');
+      try {
+        await connection.query(sqlRefreshTokens);
+        console.log('✅ Tabla refresh_tokens verificada/creada.');
+      } catch (err) {
+        console.error('⚠️ Detalle migración refresh_tokens:', err.message);
+      }
+    }
+
     // 3. Recalcular Semanas (Domingo a Sábado)
     console.log('🗓️ Verificando alineación de semanas (Domingo a Sábado)...');
     const { calculateWeeksForMonth } = require('../utils/date-helpers');

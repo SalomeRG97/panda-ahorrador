@@ -179,6 +179,65 @@ class AuthRepository {
     const [rows] = await db.query('SELECT password_hash FROM users WHERE id = ?', [userId]);
     return rows[0] ? rows[0].password_hash : null;
   }
+
+  // --- REFRESH TOKENS ---
+  async createRefreshToken({ userId, tokenHash, familyId, expiresAt, userAgent = null, ip = null }) {
+    const [result] = await db.query(
+      `INSERT INTO refresh_tokens (user_id, token_hash, family_id, expires_at, user_agent, ip)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        userId,
+        tokenHash,
+        familyId,
+        expiresAt,
+        userAgent ? String(userAgent).slice(0, 255) : null,
+        ip ? String(ip).slice(0, 45) : null,
+      ]
+    );
+    return result.insertId;
+  }
+
+  async findRefreshTokenByHash(tokenHash) {
+    const [rows] = await db.query(
+      'SELECT * FROM refresh_tokens WHERE token_hash = ? LIMIT 1',
+      [tokenHash]
+    );
+    return rows[0] || null;
+  }
+
+  async revokeRefreshTokenById(id) {
+    const [result] = await db.query(
+      'UPDATE refresh_tokens SET revoked_at = NOW() WHERE id = ? AND revoked_at IS NULL',
+      [id]
+    );
+    return result.affectedRows > 0;
+  }
+
+  async revokeRefreshTokenByHash(tokenHash) {
+    const [result] = await db.query(
+      'UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_hash = ? AND revoked_at IS NULL',
+      [tokenHash]
+    );
+    return result.affectedRows > 0;
+  }
+
+  async revokeRefreshTokenFamily(familyId) {
+    logger.warn(`[AuthRepository] Revocando familia completa de refresh tokens: ${familyId}`);
+    const [result] = await db.query(
+      'UPDATE refresh_tokens SET revoked_at = NOW() WHERE family_id = ? AND revoked_at IS NULL',
+      [familyId]
+    );
+    return result.affectedRows;
+  }
+
+  async revokeAllUserRefreshTokens(userId) {
+    logger.info(`[AuthRepository] Revocando todos los refresh tokens del usuario ID: ${userId}`);
+    const [result] = await db.query(
+      'UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = ? AND revoked_at IS NULL',
+      [userId]
+    );
+    return result.affectedRows;
+  }
 }
 
 module.exports = new AuthRepository();

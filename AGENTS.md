@@ -44,7 +44,7 @@ Permite a los usuarios:
 | **Frontend** | React 18.3 + TypeScript 5.5 + Vite 5.4 | SPA con `react-router-dom` v6, Context API (`AuthContext`, `ToastContext`), `axios`, `chart.js` + `react-chartjs-2`, estilos CSS/Glassmorphism. |
 | **Backend** | Node.js 20+ + Express 4.21 (CommonJS) | Arquitectura en 4 capas (`routes` → `controllers` → `services` → `repositories`). |
 | **Base de Datos** | MySQL 8 (CleverCloud) | Driver `mysql2/promise` con pool de conexiones limitado (`DB_CONNECTION_LIMIT=4` por límite de 5 conexiones del plan gratuito de CleverCloud). |
-| **Autenticación** | JWT (`jsonwebtoken`) + `bcryptjs` | Access Token + Refresh Token, hash bcrypt de 12 rondas, RBAC (`admin`, `regular`, `viewer`). |
+| **Autenticación** | JWT (`jsonwebtoken`) + `bcryptjs` + `cookie-parser` | Access Token en memoria (`15m`, `typ: 'access'`) + Refresh Token opaco de 64 bytes en cookie `httpOnly` (`7d`, hash SHA-256 en BD con rotación y familias), hash bcrypt de 12 rondas, RBAC (`admin`, `regular`, `viewer`). |
 | **Logging** | Winston 3.17 | Consola coloreada + archivos locales en `back/logs/` (`combined.log`, `error.log`). |
 | **Infraestructura** | Docker + Render | `Dockerfile` multi-etapa en la raíz (compila el front en `/app/front/dist` y lo sirve desde Express en el puerto `3000`), además de Dockerfiles individuales por carpeta. |
 
@@ -80,6 +80,7 @@ Permite a los usuarios:
 |---|---|---|
 | `roles` | `id` PK | Catálogo de roles: `1=admin`, `2=regular`, `3=viewer`. |
 | `users` | `id` PK, `role_id` FK | Usuarios registrados (`email`, `username`, `password_hash`, `is_active`, `avatar_url`). |
+| `refresh_tokens` | `id` PK, `user_id` FK | Sesiones de refresco (`token_hash` SHA-256 UNIQUE, `family_id` UUID, `expires_at`, `revoked_at`, `user_agent`, `ip`). |
 | `user_shares` | `owner_id`, `viewer_id` FK | Relación de compartición de datos de un `regular` hacia un `viewer`. |
 | `years` | `id` PK, `user_id` FK | Año financiero de un usuario (`year`, `start_month`, `end_month`). Unique `(user_id, year)`. |
 | `months` | `id` PK, `year_id` FK | Meses generados para el año (`month_number` 1–12, `month_name`). |
@@ -102,7 +103,7 @@ Permite a los usuarios:
 | Módulo | Ruta Base | Endpoints clave y protección |
 |---|---|---|
 | **Health** | `/api/health` | `GET /` — Verifica conexión a MySQL (`SELECT 1` con timeout 3s), retorna versión y uptime. |
-| **Auth** | `/api/auth` | `POST /register`, `POST /login`, `POST /refresh`, `GET /me` (`authenticate`). |
+| **Auth** | `/api/auth` | `POST /register`, `POST /login`, `POST /refresh` (cookie `httpOnly`), `POST /logout`, `POST /logout-all` (`authenticate`), `GET /me` (`authenticate`). |
 | **Perfil** | `/api/profile` | `GET /`, `PUT /`, `PUT /password`, `POST /avatar` (subida con `multer`). |
 | **Admin** | `/api/admin` | `GET/POST /users`, `PUT/DELETE /users/:id`, `PUT /users/:id/status`, `GET /roles` (`authorize('admin')`). |
 | **Share** | `/api/share` | `POST /`, `DELETE /:viewerId`, `GET /my-viewers`, `GET /shared-with-me`. |

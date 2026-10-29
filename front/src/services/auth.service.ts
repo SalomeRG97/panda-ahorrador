@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api, refreshAccessToken } from './api';
 import { User, LoginRequest, RegisterRequest, AuthResponse, SharedOwner, SharedViewer } from '../types';
 
 export const AuthService = {
@@ -12,9 +12,16 @@ export const AuthService = {
     return res.data.data;
   },
 
-  async refreshToken(refreshToken: string): Promise<AuthResponse> {
-    const res = await api.post<{ success: boolean; data: AuthResponse }>('/auth/refresh', { refreshToken });
-    return res.data.data;
+  async refreshToken(): Promise<AuthResponse> {
+    return await refreshAccessToken();
+  },
+
+  async logout(): Promise<void> {
+    await api.post('/auth/logout');
+  },
+
+  async logoutAll(): Promise<void> {
+    await api.post('/auth/logout-all');
   },
 
   async getProfile(): Promise<User> {

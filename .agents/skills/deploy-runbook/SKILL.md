@@ -110,7 +110,7 @@ CLIENT_URL=https://panda-ahorrador-front.onrender.com
 ### Caso C: Sospecha de exposición de credenciales o tokens comprometidos
 - **Acción inmediata:**
   1. **Base de datos:** Rotar la contraseña del usuario MySQL en el panel de CleverCloud y actualizar `DB_PASSWORD` en Render.
-  2. **Sesiones JWT:** Generar nuevos valores para `JWT_ACCESS_SECRET` y `JWT_REFRESH_SECRET` en Render y reiniciar el servicio (esto invalida de inmediato todos los tokens emitidos anteriormente).
+  2. **Sesiones JWT y Refresh Tokens:** Generar un nuevo valor para `JWT_ACCESS_SECRET` en Render, reiniciar el servicio y ejecutar `UPDATE refresh_tokens SET revoked_at = NOW() WHERE revoked_at IS NULL;` en MySQL para revocar todas las sesiones activas en todos los dispositivos.
 
 ---
 

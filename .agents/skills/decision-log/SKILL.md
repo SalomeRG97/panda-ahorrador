@@ -12,6 +12,18 @@ description: >-
 
 ---
 
+## [2026-10-28] Refresh Tokens Opacos con Rotación por Familias (`refresh_tokens`), Cookie `httpOnly` y Access Token en Memoria
+- **Decisión:**
+  1. Firmar los Access Tokens con `JWT_ACCESS_SECRET`, payload `{ sub: id, role, typ: 'access' }` y expiración de `15m`, almacenándolos únicamente en memoria en el frontend (`front/src/services/api.ts`).
+  2. Reemplazar los Refresh Tokens JWT por tokens opacos de 64 bytes aleatorios (`crypto.randomBytes(64)`), almacenando solo su hash SHA-256 (`CHAR(64)`) en la tabla `refresh_tokens` con identificador de familia (`family_id`) y entregándolos en una cookie `httpOnly` (`path=/api/auth`, `maxAge=7d`, `SameSite=None; Secure` en producción y `SameSite=Lax` en desarrollo).
+  3. Rotar el refresh token en cada llamada a `POST /api/auth/refresh` y, si se detecta la reutilización de un token previamente revocado, revocar inmediatamente toda la familia (`family_id`).
+  4. Validar `typ === 'access'` en `auth.middleware.js` y consultar el estado (`is_active`) y el rol del usuario en la BD con una caché en memoria de 60 s (invalidada de inmediato en eventos de cambio de contraseña, `logout-all` o desactivación por admin).
+  5. Serializar las respuestas `401` concurrentes en el interceptor de Axios mediante una única promesa de refresh en vuelo y una cola de reintentos.
+- **Por qué:** Antes ambos tokens se firmaban con el mismo secreto y vivían en `localStorage` (vulnerables a robo por XSS, sin posibilidad de revocación y permitiendo usar un access token como refresh).
+- **Consecuencia:** Ningún token de acceso o refresco se guarda en `localStorage`; los usuarios desactivados pierden acceso en ≤ 60 s y cualquier intento de reutilizar un refresh token rotado invalida toda la sesión.
+
+---
+
 ## [2026-10-28] Endurecimiento HTTP con Helmet, Rate Limiting, `AppError`, `X-Request-Id` y Enmascarado de PII en Logs
 - **Decisión:**
   1. Activar `helmet()`, `app.set('trust proxy', 1)` y `express.json({ limit: '100kb' })` en `back/src/app.js`.

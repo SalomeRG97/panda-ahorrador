@@ -1,14 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User, LoginRequest, RegisterRequest } from '../types';
 import { AuthService } from '../services/auth.service';
+import { setAccessToken, registerAuthCallbacks } from '../services/api';
 
 interface AuthContextType {
   currentUser: User | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   userRole: string | null;
   login: (credentials: LoginRequest) => Promise<void>;
   register: (data: RegisterRequest) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
+  logoutAll: () => Promise<void>;
   updateUser: (user: User) => void;
   hasRole: (...roles: string[]) => boolean;
   reloadProfile: () => Promise<void>;
@@ -17,31 +20,63 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const userData = localStorage.getItem('panda_user');
-    const token = localStorage.getItem('panda_access_token');
-    if (userData && token) {
-      try {
-        return JSON.parse(userData);
-      } catch {
-        localStorage.removeItem('panda_user');
-        localStorage.removeItem('panda_access_token');
-        localStorage.removeItem('panda_refresh_token');
-        return null;
-      }
-    }
-    return null;
-  });
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const isAuthenticated = !!currentUser;
   const userRole = currentUser?.role || null;
 
-  const handleAuthSuccess = (data: { accessToken: string; refreshToken: string; user: User }) => {
-    localStorage.setItem('panda_access_token', data.accessToken);
-    localStorage.setItem('panda_refresh_token', data.refreshToken);
+  const clearLocalSession = useCallback(() => {
+    setAccessToken(null);
+    localStorage.removeItem('panda_user');
+    setCurrentUser(null);
+  }, []);
+
+  const handleAuthSuccess = useCallback((data: { accessToken: string; user: User }) => {
+    setAccessToken(data.accessToken);
     localStorage.setItem('panda_user', JSON.stringify(data.user));
     setCurrentUser(data.user);
-  };
+  }, []);
+
+  useEffect(() => {
+    registerAuthCallbacks({
+      onRefresh: ({ accessToken, user }) => {
+        setAccessToken(accessToken);
+        setCurrentUser(user);
+      },
+      onFailure: () => {
+        clearLocalSession();
+      },
+    });
+  }, [clearLocalSession]);
+
+  // Al cargar la app, intenta recuperar la sesión desde la cookie httpOnly (/auth/refresh)
+  useEffect(() => {
+    let isMounted = true;
+
+    const initSession = async () => {
+      try {
+        const data = await AuthService.refreshToken();
+        if (isMounted) {
+          handleAuthSuccess(data);
+        }
+      } catch {
+        if (isMounted) {
+          clearLocalSession();
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    initSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [handleAuthSuccess, clearLocalSession]);
 
   const login = async (credentials: LoginRequest) => {
     const data = await AuthService.login(credentials);
@@ -53,12 +88,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     handleAuthSuccess(resData);
   };
 
-  const logout = useCallback(() => {
-    localStorage.removeItem('panda_access_token');
-    localStorage.removeItem('panda_refresh_token');
-    localStorage.removeItem('panda_user');
-    setCurrentUser(null);
-  }, []);
+  const logout = useCallback(async () => {
+    try {
+      await AuthService.logout();
+    } catch {
+      // Ignorar errores de red al cerrar sesión para limpiar siempre el cliente
+    } finally {
+      clearLocalSession();
+    }
+  }, [clearLocalSession]);
+
+  const logoutAll = useCallback(async () => {
+    try {
+      await AuthService.logoutAll();
+    } finally {
+      clearLocalSession();
+    }
+  }, [clearLocalSession]);
 
   const updateUser = (user: User) => {
     setCurrentUser(user);
@@ -84,16 +130,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         currentUser,
         isAuthenticated,
+        isLoading,
         userRole,
         login,
         register,
         logout,
+        logoutAll,
         updateUser,
         hasRole,
         reloadProfile,
       }}
     >
-      {children}
+      {isLoading ? (
+        <div
+          style={{
+            minHeight: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '12px',
+            background: '#FFF8FA',
+            color: '#D4566A',
+            fontFamily: 'Comfortaa, cursive',
+          }}
+        >
+          <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '2rem' }}></i>
+          <span>Recuperando sesión del Panda Ahorrador... 🌸</span>
+        </div>
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   );
 };
