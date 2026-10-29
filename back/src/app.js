@@ -1,12 +1,16 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const fs = require('fs');
 const path = require('path');
 const config = require('./config/environment');
 const pool = require('./config/database');
 const logger = require('./config/logger');
 const { version } = require('../package.json');
+const AppError = require('./utils/app-error');
+const requestId = require('./middlewares/request-id.middleware');
 const requestLogger = require('./middlewares/request-logger.middleware');
+const { apiLimiter } = require('./middlewares/rate-limit.middleware');
 const errorHandler = require('./middlewares/error-handler.middleware');
 
 // Rutas de autenticación
@@ -29,7 +33,13 @@ const shortcutsRoutes = require('./routes/shortcuts.routes');
 
 const app = express();
 
+// Render usa un proxy inverso; necesario para obtener IP real en rate limiting
+app.set('trust proxy', 1);
+
 // Middlewares globales
+app.use(requestId);
+app.use(helmet());
+
 const normalizeOrigin = (url) => (url || '').trim().replace(/\/+$/, '');
 
 const clientOrigins = (config.clientUrl || '')
@@ -52,16 +62,22 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(normalizeOrigin(origin))) {
       callback(null, true);
     } else {
-      callback(new Error('Origen no permitido por CORS'), false);
+      callback(new AppError(403, 'Origen no permitido por CORS', 'CORS_NOT_ALLOWED'), false);
     }
   },
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
 app.use(requestLogger);
 
 // Servir archivos estáticos (avatares)
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(__dirname, '../uploads')));
+
+// Rate limit global para /api (300 peticiones cada 15 min)
+app.use('/api', apiLimiter);
 
 // Ruta de comprobación de estado (Health Check)
 const HEALTH_CHECK_TIMEOUT_MS = 3000;

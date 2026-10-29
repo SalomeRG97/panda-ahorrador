@@ -40,11 +40,19 @@ description: >-
 - [x] **Sistema de Memoria del Proyecto:**
   - Creados `AGENTS.md`, `back/AGENTS.md`, `front/AGENTS.md` y las 4 skills en `.agents/skills/`.
 
+### Fase 1 — Seguridad Base (En curso)
+- [x] **Prompt 5 (Helmet, Rate Limiting, `AppError`, `X-Request-Id` y Privacidad en Logs):**
+  - Instalados `helmet` y `express-rate-limit` en `back/`.
+  - Configurado `app.set('trust proxy', 1)`, `app.use(helmet())` y `express.json({ limit: '100kb' })` en `back/src/app.js`.
+  - Implementados rate limiters en `back/src/middlewares/rate-limit.middleware.js`: `/api/auth/login` (5/15m por IP+email en minúsculas), `/api/auth/register` (5/1h por IP), `/api/auth/refresh` (30/15m) y global `/api` (300/15m) con respuesta `429`.
+  - Creada clase `AppError` en `back/src/utils/app-error.js` y migrados todos los `throw { statusCode, message }` del backend.
+  - Reescrito `error-handler.middleware.js` junto con `request-id.middleware.js` (`X-Request-Id`), manejo de `MulterError` (`LIMIT_FILE_SIZE` → `400`), `CORS` (`403`) y ocultamiento de detalles/stack en errores 500.
+  - Eliminado registro de emails en texto plano en nivel `info` en `request-logger`, repositorios, servicios y controladores usando `userId` y `logger.maskEmail` (`j***@dominio.com`).
+
 ---
 
 ## 🔴 En Progreso / Próximo Paso: Fase 1 — Seguridad Base
 
-- [ ] **Prompt 5:** `helmet`, `express-rate-limit` (login, registro, refresh y global), límite de body (`100kb`), clase `AppError`, `requestId` (`X-Request-Id`), ocultamiento de detalles en errores 500 y enmascarado de emails en logs.
 - [ ] **Prompt 6:** Separación criptográfica entre Access Token y Refresh Token, tabla `refresh_tokens` con rotación y revocación por familias, cookie `httpOnly`, endpoints `/api/auth/logout` y `/api/auth/logout-all`, y cola de refresh único en el interceptor Axios del frontend.
 - [ ] **Prompt 7:** Reglas de negocio en categorías (bloquear edición de globales a no-admin, validar hex/icono y pertenencia de `category_id` al crear gastos), eliminar contraseña fija `'Temporal123!'` en creación por admin y agregar flujo `must_change_password`.
 - [ ] **Prompt 8:** Validación centralizada de entrada con `zod` (`validate.middleware.js` y esquemas en `back/src/validators/`).

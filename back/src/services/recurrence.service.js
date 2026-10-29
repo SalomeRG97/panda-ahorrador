@@ -3,6 +3,7 @@ const expenseRepository = require('../repositories/expense.repository');
 const ownershipRepository = require('../repositories/ownership.repository');
 const expenseService = require('./expense.service');
 const logger = require('../config/logger');
+const AppError = require('../utils/app-error');
 
 const FREQUENCIES = ['daily', 'weekly', 'biweekly', 'monthly', 'yearly'];
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -88,12 +89,12 @@ class RecurrenceService {
   async createSeries(userId, data) {
     const { frequency, recurrence } = { frequency: data.recurrence?.frequency, recurrence: data.recurrence };
     if (!FREQUENCIES.includes(frequency)) {
-      throw { statusCode: 400, message: 'Frecuencia de repetici\u00f3n no v\u00e1lida' };
+      throw new AppError(400, 'Frecuencia de repetici\u00f3n no v\u00e1lida');
     }
     const startDate = String(data.date).slice(0, 10);
     const endDate = recurrence.end_date ? String(recurrence.end_date).slice(0, 10) : null;
     if (endDate && endDate < startDate) {
-      throw { statusCode: 400, message: 'La fecha final no puede ser anterior a la fecha del gasto' };
+      throw new AppError(400, 'La fecha final no puede ser anterior a la fecha del gasto');
     }
 
     const ruleId = await repo.create(userId, {
@@ -139,12 +140,12 @@ class RecurrenceService {
   async deleteBudgetWithScope(userId, expenseId, scope = 'single') {
     const exp = await expenseRepository.getBudgetExpenseById(expenseId);
     if (!exp) {
-      throw { statusCode: 404, message: 'Gasto presupuestado no encontrado' };
+      throw new AppError(404, 'Gasto presupuestado no encontrado');
     }
 
     const ownerId = await ownershipRepository.getBudgetExpenseOwnerId(expenseId);
     if (!ownerId || (userId != null && Number(ownerId) !== Number(userId))) {
-      throw { statusCode: 404, message: 'Gasto presupuestado no encontrado' };
+      throw new AppError(404, 'Gasto presupuestado no encontrado');
     }
 
     if (!exp.recurrence_id || scope === 'single') {
@@ -179,7 +180,7 @@ class RecurrenceService {
   async deleteSeriesFrom(userId, recurrenceId, fromDate) {
     const rule = await repo.getById(recurrenceId);
     if (!rule || Number(rule.user_id) !== Number(userId)) {
-      throw { statusCode: 404, message: 'Serie no encontrada' };
+      throw new AppError(404, 'Serie no encontrada');
     }
     const from = String(fromDate).slice(0, 10);
     await repo.deleteOccurrencesFrom(recurrenceId, from);
@@ -202,12 +203,12 @@ class RecurrenceService {
   async updateBudgetWithScope(userId, expenseId, data, scope = 'single') {
     const exp = await expenseRepository.getBudgetExpenseById(expenseId);
     if (!exp) {
-      throw { statusCode: 404, message: 'Gasto presupuestado no encontrado' };
+      throw new AppError(404, 'Gasto presupuestado no encontrado');
     }
 
     const ownerId = await ownershipRepository.getBudgetExpenseOwnerId(expenseId);
     if (!ownerId || (userId != null && Number(ownerId) !== Number(userId))) {
-      throw { statusCode: 404, message: 'Gasto presupuestado no encontrado' };
+      throw new AppError(404, 'Gasto presupuestado no encontrado');
     }
 
     if (!exp.recurrence_id || scope === 'single') {

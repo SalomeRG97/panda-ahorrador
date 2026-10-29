@@ -5,7 +5,7 @@ class ShareController {
   async shareData(req, res, next) {
     try {
       const { viewerEmail } = req.body;
-      logger.info(`[ShareController] POST /api/share -> Owner ${req.user.id} comparte con ${viewerEmail}`);
+      logger.info(`[ShareController] POST /api/share -> Owner ${req.user.id} comparte con ${logger.maskEmail(viewerEmail)}`);
       const result = await authService.shareWithViewer(req.user.id, viewerEmail);
       res.status(201).json({ success: true, data: result });
     } catch (error) {

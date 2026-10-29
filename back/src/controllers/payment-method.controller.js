@@ -1,14 +1,15 @@
 const repo = require('../repositories/payment-method.repository');
 const logger = require('../config/logger');
+const AppError = require('../utils/app-error');
 
 const RESERVED = 'retiro de ahorros';
 
 function validateName(raw) {
   const name = (raw || '').trim();
-  if (!name) throw { statusCode: 400, message: 'El nombre del medio de pago es requerido' };
-  if (name.length > 50) throw { statusCode: 400, message: 'El nombre no puede exceder 50 caracteres' };
+  if (!name) throw new AppError(400, 'El nombre del medio de pago es requerido');
+  if (name.length > 50) throw new AppError(400, 'El nombre no puede exceder 50 caracteres');
   if (name.toLowerCase() === RESERVED) {
-    throw { statusCode: 400, message: '«Retiro de Ahorros» es un medio de pago reservado del sistema' };
+    throw new AppError(400, '«Retiro de Ahorros» es un medio de pago reservado del sistema');
   }
   return name;
 }
@@ -29,7 +30,7 @@ class PaymentMethodController {
       const userId = req.effectiveUserId || req.user.id;
       const name = validateName(req.body.name);
       if (await repo.findByName(userId, name)) {
-        throw { statusCode: 409, message: 'Ya tienes un medio de pago con ese nombre' };
+        throw new AppError(409, 'Ya tienes un medio de pago con ese nombre');
       }
       const id = await repo.create(userId, name);
       res.status(201).json({ success: true, data: { id, name } });
@@ -45,11 +46,11 @@ class PaymentMethodController {
       const name = validateName(req.body.name);
       const current = await repo.getById(id);
       if (!current || Number(current.user_id) !== Number(userId)) {
-        throw { statusCode: 404, message: 'Medio de pago no encontrado' };
+        throw new AppError(404, 'Medio de pago no encontrado');
       }
       const dup = await repo.findByName(userId, name);
       if (dup && dup.id !== id) {
-        throw { statusCode: 409, message: 'Ya tienes un medio de pago con ese nombre' };
+        throw new AppError(409, 'Ya tienes un medio de pago con ese nombre');
       }
       await repo.rename(id, userId, current.name, name);
       res.json({ success: true, data: { id, name } });
@@ -64,7 +65,7 @@ class PaymentMethodController {
       const userId = req.effectiveUserId || req.user.id;
       const current = await repo.getById(id);
       if (!current || Number(current.user_id) !== Number(userId)) {
-        throw { statusCode: 404, message: 'Medio de pago no encontrado' };
+        throw new AppError(404, 'Medio de pago no encontrado');
       }
       await repo.delete(id);
       logger.info(`[PaymentMethodController] Medio de pago ${id} eliminado`);

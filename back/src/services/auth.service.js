@@ -3,17 +3,18 @@ const jwt = require('jsonwebtoken');
 const authRepository = require('../repositories/auth.repository');
 const config = require('../config/environment');
 const logger = require('../config/logger');
+const AppError = require('../utils/app-error');
 
 const SALT_ROUNDS = 12;
 
 class AuthService {
   // --- REGISTRO ---
   async register(email, username, password, name) {
-    logger.info(`[AuthService] Registrando nuevo usuario: ${email}`);
+    logger.info(`[AuthService] Registrando nuevo usuario: ${logger.maskEmail(email)}`);
 
     // Validaciones
     if (!email || !username || !password || !name) {
-      throw { statusCode: 400, message: 'Todos los campos son requeridos' };
+      throw new AppError(400, 'Todos los campos son requeridos');
     }
 
     this._validatePasswordStrength(password);
@@ -21,19 +22,19 @@ class AuthService {
     // Verificar email duplicado
     const existingEmail = await authRepository.findUserByEmail(email);
     if (existingEmail) {
-      throw { statusCode: 409, message: 'El email ya está registrado' };
+      throw new AppError(409, 'El email ya está registrado');
     }
 
     // Verificar username duplicado
     const existingUsername = await authRepository.findUserByUsername(username);
     if (existingUsername) {
-      throw { statusCode: 409, message: 'El nombre de usuario ya está en uso' };
+      throw new AppError(409, 'El nombre de usuario ya está en uso');
     }
 
     // Obtener rol 'regular'
     const role = await authRepository.getRoleByName('regular');
     if (!role) {
-      throw { statusCode: 500, message: 'Error de configuración: rol regular no encontrado' };
+      throw new AppError(500, 'Error de configuración: rol regular no encontrado');
     }
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -53,24 +54,24 @@ class AuthService {
 
   // --- LOGIN ---
   async login(email, password) {
-    logger.info(`[AuthService] Intento de login: ${email}`);
+    logger.info(`[AuthService] Intento de login: ${logger.maskEmail(email)}`);
 
     const user = await authRepository.findUserByEmail(email);
     if (!user) {
-      throw { statusCode: 401, message: 'Credenciales inválidas' };
+      throw new AppError(401, 'Credenciales inválidas');
     }
 
     if (!user.is_active) {
-      throw { statusCode: 403, message: 'La cuenta está desactivada. Contacta al administrador.' };
+      throw new AppError(403, 'La cuenta está desactivada. Contacta al administrador.');
     }
 
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
-      throw { statusCode: 401, message: 'Credenciales inválidas' };
+      throw new AppError(401, 'Credenciales inválidas');
     }
 
     const tokens = this._generateTokens(user);
-    logger.info(`[AuthService] Login exitoso: ${email} (rol: ${user.role_name})`);
+    logger.info(`[AuthService] Login exitoso: usuario ID ${user.id} (${logger.maskEmail(email)}, rol: ${user.role_name})`);
 
     return { user: this._sanitizeUser(user), ...tokens };
   }
@@ -82,14 +83,14 @@ class AuthService {
       const user = await authRepository.findUserById(decoded.id);
 
       if (!user || !user.is_active) {
-        throw { statusCode: 401, message: 'Token inválido' };
+        throw new AppError(401, 'Token inválido');
       }
 
       const tokens = this._generateTokens(user);
       return { user: this._sanitizeUser(user), ...tokens };
     } catch (error) {
-      if (error.statusCode) throw error;
-      throw { statusCode: 401, message: 'Token de refresco inválido o expirado' };
+      if (error instanceof AppError || error.statusCode) throw error;
+      throw new AppError(401, 'Token de refresco inválido o expirado');
     }
   }
 
@@ -98,7 +99,7 @@ class AuthService {
     logger.info(`[AuthService] Cambio de contraseña para usuario ID: ${userId}`);
 
     if (!newPassword) {
-      throw { statusCode: 400, message: 'La nueva contraseña es requerida' };
+      throw new AppError(400, 'La nueva contraseña es requerida');
     }
 
     this._validatePasswordStrength(newPassword);
@@ -106,7 +107,7 @@ class AuthService {
     const currentHash = await authRepository.getPasswordHash(userId);
     const isMatch = await bcrypt.compare(oldPassword, currentHash);
     if (!isMatch) {
-      throw { statusCode: 401, message: 'La contraseña actual es incorrecta' };
+      throw new AppError(401, 'La contraseña actual es incorrecta');
     }
 
     const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
@@ -116,19 +117,19 @@ class AuthService {
 
   _validatePasswordStrength(password) {
     if (password.length < 8) {
-      throw { statusCode: 400, message: 'La contraseña debe tener al menos 8 caracteres' };
+      throw new AppError(400, 'La contraseña debe tener al menos 8 caracteres');
     }
     if (!/[A-Z]/.test(password)) {
-      throw { statusCode: 400, message: 'La contraseña debe incluir al menos una letra mayúscula' };
+      throw new AppError(400, 'La contraseña debe incluir al menos una letra mayúscula');
     }
     if (!/[a-z]/.test(password)) {
-      throw { statusCode: 400, message: 'La contraseña debe incluir al menos una letra minúscula' };
+      throw new AppError(400, 'La contraseña debe incluir al menos una letra minúscula');
     }
     if (!/[0-9]/.test(password)) {
-      throw { statusCode: 400, message: 'La contraseña debe incluir al menos un número' };
+      throw new AppError(400, 'La contraseña debe incluir al menos un número');
     }
     if (!/[@$!%*?&.#_\-]/.test(password)) {
-      throw { statusCode: 400, message: 'La contraseña debe incluir al menos un carácter especial (@$!%*?&.#_-)' };
+      throw new AppError(400, 'La contraseña debe incluir al menos un carácter especial (@$!%*?&.#_-)');
     }
   }
 
@@ -136,7 +137,7 @@ class AuthService {
   async getProfile(userId) {
     const user = await authRepository.findUserById(userId);
     if (!user) {
-      throw { statusCode: 404, message: 'Usuario no encontrado' };
+      throw new AppError(404, 'Usuario no encontrado');
     }
     return this._sanitizeUser(user);
   }
@@ -148,14 +149,14 @@ class AuthService {
     if (email) {
       const existing = await authRepository.findUserByEmail(email);
       if (existing && existing.id !== userId) {
-        throw { statusCode: 409, message: 'El email ya está en uso por otro usuario' };
+        throw new AppError(409, 'El email ya está en uso por otro usuario');
       }
     }
 
     if (username) {
       const existing = await authRepository.findUserByUsername(username);
       if (existing && existing.id !== userId) {
-        throw { statusCode: 409, message: 'El nombre de usuario ya está en uso' };
+        throw new AppError(409, 'El nombre de usuario ya está en uso');
       }
     }
 
@@ -176,21 +177,21 @@ class AuthService {
 
   // --- ADMIN: Gestión de usuarios ---
   async adminCreateUser(email, username, name, roleName, password) {
-    logger.info(`[AuthService] Admin creando usuario: ${email} con rol ${roleName}`);
+    logger.info(`[AuthService] Admin creando usuario: ${logger.maskEmail(email)} con rol ${roleName}`);
 
     const role = await authRepository.getRoleByName(roleName);
     if (!role) {
-      throw { statusCode: 400, message: `Rol '${roleName}' no es válido` };
+      throw new AppError(400, `Rol '${roleName}' no es válido`);
     }
 
     const existingEmail = await authRepository.findUserByEmail(email);
     if (existingEmail) {
-      throw { statusCode: 409, message: 'El email ya está registrado' };
+      throw new AppError(409, 'El email ya está registrado');
     }
 
     const existingUsername = await authRepository.findUserByUsername(username);
     if (existingUsername) {
-      throw { statusCode: 409, message: 'El nombre de usuario ya está en uso' };
+      throw new AppError(409, 'El nombre de usuario ya está en uso');
     }
 
     const userPassword = password || 'Temporal123!';
@@ -214,7 +215,7 @@ class AuthService {
     if (fields.role) {
       const role = await authRepository.getRoleByName(fields.role);
       if (!role) {
-        throw { statusCode: 400, message: `Rol '${fields.role}' no es válido` };
+        throw new AppError(400, `Rol '${fields.role}' no es válido`);
       }
       fields.role_id = role.id;
       delete fields.role;
@@ -254,24 +255,24 @@ class AuthService {
 
   // --- SHARES ---
   async shareWithViewer(ownerId, viewerEmail) {
-    logger.info(`[AuthService] Usuario ${ownerId} compartiendo con ${viewerEmail}`);
+    logger.info(`[AuthService] Usuario ${ownerId} compartiendo con ${logger.maskEmail(viewerEmail)}`);
 
     const viewer = await authRepository.findUserByEmail(viewerEmail);
     if (!viewer) {
-      throw { statusCode: 404, message: 'No se encontró un usuario con ese email' };
+      throw new AppError(404, 'No se encontró un usuario con ese email');
     }
 
     if (viewer.role_name !== 'viewer') {
-      throw { statusCode: 400, message: 'Solo puedes compartir con usuarios de rol Viewer' };
+      throw new AppError(400, 'Solo puedes compartir con usuarios de rol Viewer');
     }
 
     if (viewer.id === ownerId) {
-      throw { statusCode: 400, message: 'No puedes compartir contigo mismo' };
+      throw new AppError(400, 'No puedes compartir contigo mismo');
     }
 
     const exists = await authRepository.shareExists(ownerId, viewer.id);
     if (exists) {
-      throw { statusCode: 409, message: 'Ya compartes datos con este usuario' };
+      throw new AppError(409, 'Ya compartes datos con este usuario');
     }
 
     await authRepository.createShare(ownerId, viewer.id);

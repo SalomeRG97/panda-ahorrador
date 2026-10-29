@@ -5,7 +5,7 @@ const ownershipRepository = require('./ownership.repository');
 class AuthRepository {
   // --- USERS ---
   async findUserByEmail(email) {
-    logger.debug(`[AuthRepository] Buscando usuario por email: ${email}`);
+    logger.debug(`[AuthRepository] Buscando usuario por email: ${logger.maskEmail(email)}`);
     const [rows] = await db.query(
       `SELECT u.*, r.name as role_name 
        FROM users u 
@@ -41,7 +41,7 @@ class AuthRepository {
   }
 
   async createUser({ email, username, passwordHash, name, roleId }) {
-    logger.info(`[AuthRepository] Creando usuario: ${email} (${username})`);
+    logger.info(`[AuthRepository] Creando usuario: ${logger.maskEmail(email)} (${username})`);
     const [result] = await db.query(
       `INSERT INTO users (email, username, password_hash, name, role_id) 
        VALUES (?, ?, ?, ?, ?)`,

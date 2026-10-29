@@ -2,6 +2,7 @@ const weekRepository = require('../repositories/week.repository');
 const expenseRepository = require('../repositories/expense.repository');
 const categoryRepository = require('../repositories/category.repository');
 const logger = require('../config/logger');
+const AppError = require('../utils/app-error');
 
 class WeekService {
   async getWeeksByMonth(monthId) {
@@ -12,7 +13,7 @@ class WeekService {
     logger.info(`[WeekService] Obteniendo resumen completo de semana ID ${weekId}`);
     const week = await weekRepository.getById(weekId);
     if (!week) {
-      throw { statusCode: 404, message: 'Semana no encontrada' };
+      throw new AppError(404, 'Semana no encontrada');
     }
 
     const budgetExpenses = await expenseRepository.getBudgetExpensesByWeek(weekId);

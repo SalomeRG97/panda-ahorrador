@@ -9,7 +9,8 @@
     "init-db": "node src/scripts/init-db.js",
     "migrate-auth": "node src/scripts/run-auth-migration.js",
     "migrate-new": "node src/scripts/run-new-migrations.js",
-    "test:ownership": "node src/scripts/test-ownership.js"
+    "test:ownership": "node src/scripts/test-ownership.js",
+    "test:security": "node src/scripts/test-security-base.js"
   },
   "keywords": [
     "finance",
@@ -25,6 +26,8 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "express-rate-limit": "^8.7.1",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",
     "mysql2": "^3.12.0",

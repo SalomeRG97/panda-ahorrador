@@ -15,7 +15,7 @@ class AdminController {
   async createUser(req, res, next) {
     try {
       const { email, username, name, role, password } = req.body;
-      logger.info(`[AdminController] POST /api/admin/users -> ${email} (${role})`);
+      logger.info(`[AdminController] POST /api/admin/users -> ${logger.maskEmail(email)} (${role})`);
       const user = await authService.adminCreateUser(email, username, name, role, password);
       res.status(201).json({ success: true, data: user });
     } catch (error) {

@@ -2,6 +2,7 @@ const incomeRepository = require('../repositories/income.repository');
 const weekRepository = require('../repositories/week.repository');
 const ownershipRepository = require('../repositories/ownership.repository');
 const logger = require('../config/logger');
+const AppError = require('../utils/app-error');
 
 class IncomeService {
   async getIncomesByMonth(monthId) {
@@ -10,12 +11,12 @@ class IncomeService {
 
   async createIncome(monthId, date, concept, amount, userId = null) {
     if (!monthId || !date || !concept || amount == null) {
-      throw { statusCode: 400, message: 'Todos los campos de ingreso son requeridos' };
+      throw new AppError(400, 'Todos los campos de ingreso son requeridos');
     }
 
     const ownerId = await ownershipRepository.getMonthOwnerId(monthId);
     if (!ownerId || (userId != null && Number(ownerId) !== Number(userId))) {
-      throw { statusCode: 404, message: 'Mes no encontrado' };
+      throw new AppError(404, 'Mes no encontrado');
     }
 
     return await incomeRepository.create(monthId, date, concept, amount);
@@ -23,22 +24,22 @@ class IncomeService {
 
   async updateIncome(id, date, concept, amount, userId = null, monthId = null) {
     if (!id || isNaN(id)) {
-      throw { statusCode: 400, message: 'ID de ingreso no válido' };
+      throw new AppError(400, 'ID de ingreso no válido');
     }
     if (!date || !concept || amount == null) {
-      throw { statusCode: 400, message: 'Todos los campos de ingreso son requeridos' };
+      throw new AppError(400, 'Todos los campos de ingreso son requeridos');
     }
 
     const ownerId = await ownershipRepository.getIncomeOwnerId(id);
     if (!ownerId || (userId != null && Number(ownerId) !== Number(userId))) {
-      throw { statusCode: 404, message: 'Ingreso no encontrado' };
+      throw new AppError(404, 'Ingreso no encontrado');
     }
 
     let targetMonthId = monthId || null;
     if (targetMonthId != null) {
       const monthOwnerId = await ownershipRepository.getMonthOwnerId(targetMonthId);
       if (!monthOwnerId || Number(monthOwnerId) !== Number(ownerId)) {
-        throw { statusCode: 404, message: 'Mes no encontrado' };
+        throw new AppError(404, 'Mes no encontrado');
       }
     }
 
@@ -52,7 +53,7 @@ class IncomeService {
       if (matchedWeek) {
         const newMonthOwnerId = await ownershipRepository.getMonthOwnerId(matchedWeek.month_id);
         if (!newMonthOwnerId || Number(newMonthOwnerId) !== Number(ownerId)) {
-          throw { statusCode: 404, message: 'Mes no encontrado' };
+          throw new AppError(404, 'Mes no encontrado');
         }
         targetMonthId = matchedWeek.month_id;
       }
@@ -63,12 +64,12 @@ class IncomeService {
 
   async deleteIncome(id, userId = null) {
     if (!id || isNaN(id)) {
-      throw { statusCode: 400, message: 'ID de ingreso no válido' };
+      throw new AppError(400, 'ID de ingreso no válido');
     }
 
     const ownerId = await ownershipRepository.getIncomeOwnerId(id);
     if (!ownerId || (userId != null && Number(ownerId) !== Number(userId))) {
-      throw { statusCode: 404, message: 'Ingreso no encontrado' };
+      throw new AppError(404, 'Ingreso no encontrado');
     }
 
     return await incomeRepository.delete(id);
@@ -76,12 +77,12 @@ class IncomeService {
 
   async setMonthSaving(monthId, amount, userId = null) {
     if (!monthId || amount == null) {
-      throw { statusCode: 400, message: 'Mes ID y monto de ahorro son requeridos' };
+      throw new AppError(400, 'Mes ID y monto de ahorro son requeridos');
     }
 
     const ownerId = await ownershipRepository.getMonthOwnerId(monthId);
     if (!ownerId || (userId != null && Number(ownerId) !== Number(userId))) {
-      throw { statusCode: 404, message: 'Mes no encontrado' };
+      throw new AppError(404, 'Mes no encontrado');
     }
 
     return await incomeRepository.setSaving(monthId, amount);

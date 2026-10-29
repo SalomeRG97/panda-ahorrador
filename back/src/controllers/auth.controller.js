@@ -5,7 +5,7 @@ class AuthController {
   async register(req, res, next) {
     try {
       const { email, username, password, name } = req.body;
-      logger.info(`[AuthController] POST /api/auth/register -> ${email}`);
+      logger.info(`[AuthController] POST /api/auth/register -> ${logger.maskEmail(email)}`);
       const result = await authService.register(email, username, password, name);
       res.status(201).json({ success: true, data: result });
     } catch (error) {
@@ -16,7 +16,7 @@ class AuthController {
   async login(req, res, next) {
     try {
       const { email, password } = req.body;
-      logger.info(`[AuthController] POST /api/auth/login -> ${email}`);
+      logger.info(`[AuthController] POST /api/auth/login -> ${logger.maskEmail(email)}`);
       const result = await authService.login(email, password);
       res.json({ success: true, data: result });
     } catch (error) {

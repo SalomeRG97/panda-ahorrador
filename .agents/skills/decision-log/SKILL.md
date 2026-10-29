@@ -12,6 +12,17 @@ description: >-
 
 ---
 
+## [2026-10-28] Endurecimiento HTTP con Helmet, Rate Limiting, `AppError`, `X-Request-Id` y Enmascarado de PII en Logs
+- **Decisión:**
+  1. Activar `helmet()`, `app.set('trust proxy', 1)` y `express.json({ limit: '100kb' })` en `back/src/app.js`.
+  2. Configurar `express-rate-limit` con políticas diferenciadas: `/api/auth/login` (5/15m por IP+email en minúsculas), `/api/auth/register` (5/h por IP), `/api/auth/refresh` (30/15m) y global `/api` (300/15m).
+  3. Estandarizar errores operacionales con `AppError(statusCode, message, code)` y trazabilidad por petición mediante `X-Request-Id` (`crypto.randomUUID()`), ocultando mensajes internos/SQL y `err.stack` en errores 5xx cuando `NODE_ENV !== 'development'`.
+  4. Enmascarar direcciones de correo (`j***@dominio.com`) o usar `userId` en logs de nivel `info`.
+- **Por qué:** Mitigar ataques de fuerza bruta sobre credenciales, ataques DoS por payloads grandes, filtración de estructura SQL/stacktraces al cliente e inclusión de datos personales (PII) en archivos de log.
+- **Consecuencia:** Todo error controlado en servicios o controladores debe instanciar `AppError` y ningún log `info` debe imprimir emails completos sin pasar por `logger.maskEmail`.
+
+---
+
 ## [2026-10-28] Sistema de Memoria Persistente en el Repositorio (`AGENTS.md` + `.agents/skills/`)
 - **Decisión:** Incorporar un sistema de memoria viva directamente en el repositorio (`AGENTS.md`, `back/AGENTS.md`, `front/AGENTS.md` y 4 skills en `.agents/skills/`).
 - **Por qué:** Garantizar que cualquier desarrollador o agente de IA entienda de inmediato qué hace el proyecto, cómo está construido, cómo se opera y en qué estado va, evitando regresiones entre sesiones.

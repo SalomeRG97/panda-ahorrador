@@ -1,5 +1,6 @@
 const categoryRepository = require('../repositories/category.repository');
 const logger = require('../config/logger');
+const AppError = require('../utils/app-error');
 
 class CategoryService {
   async getAllCategories(userId) {
@@ -14,17 +15,17 @@ class CategoryService {
     logger.info(`[CategoryService] Creando categoría: ${name} para usuario ${userId}`);
 
     if (!name || !color || !icon) {
-      throw { statusCode: 400, message: 'Nombre, color e icono son requeridos' };
+      throw new AppError(400, 'Nombre, color e icono son requeridos');
     }
 
     if (name.length > 50) {
-      throw { statusCode: 400, message: 'El nombre no puede exceder 50 caracteres' };
+      throw new AppError(400, 'El nombre no puede exceder 50 caracteres');
     }
 
     // Check for duplicates within user's scope
     const existing = await categoryRepository.findUserCategoryByName(userId, name);
     if (existing) {
-      throw { statusCode: 409, message: 'Ya tienes una categoría con ese nombre' };
+      throw new AppError(409, 'Ya tienes una categoría con ese nombre');
     }
 
     const id = await categoryRepository.create(name, color, icon, userId);
@@ -36,11 +37,11 @@ class CategoryService {
 
     const category = await categoryRepository.getById(id);
     if (!category) {
-      throw { statusCode: 404, message: 'Categoría no encontrada' };
+      throw new AppError(404, 'Categoría no encontrada');
     }
 
     if (category.user_id && userId != null && Number(category.user_id) !== Number(userId)) {
-      throw { statusCode: 404, message: 'Categoría no encontrada' };
+      throw new AppError(404, 'Categoría no encontrada');
     }
 
     await categoryRepository.update(id, data);
@@ -52,15 +53,15 @@ class CategoryService {
 
     const category = await categoryRepository.getById(id);
     if (!category) {
-      throw { statusCode: 404, message: 'Categoría no encontrada' };
+      throw new AppError(404, 'Categoría no encontrada');
     }
 
     if (category.isGlobal) {
-      throw { statusCode: 403, message: 'No puedes eliminar las categorías predeterminadas del sistema' };
+      throw new AppError(403, 'No puedes eliminar las categorías predeterminadas del sistema');
     }
 
     if (category.user_id && Number(category.user_id) !== Number(userId)) {
-      throw { statusCode: 403, message: 'No tienes permiso para eliminar esta categoría' };
+      throw new AppError(403, 'No tienes permiso para eliminar esta categoría');
     }
 
     await categoryRepository.delete(id);

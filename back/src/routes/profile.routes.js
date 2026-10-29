@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const profileController = require('../controllers/profile.controller');
 const { authenticate } = require('../middlewares/auth.middleware');
+const AppError = require('../utils/app-error');
 
 // Configurar multer para subida de avatares
 const storage = multer.diskStorage({
@@ -23,7 +24,7 @@ const fileFilter = (req, file, cb) => {
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Solo se permiten imágenes (JPEG, PNG, GIF, WEBP)'), false);
+    cb(new AppError(400, 'Solo se permiten imágenes (JPEG, PNG, GIF, WEBP)'), false);
   }
 };
 

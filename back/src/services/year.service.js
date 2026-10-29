@@ -6,6 +6,7 @@ const ownershipRepository = require('../repositories/ownership.repository');
 const { getMonthName, getDaysInMonth, calculateWeeksForMonth } = require('../utils/date-helpers');
 const recurrenceService = require('./recurrence.service');
 const logger = require('../config/logger');
+const AppError = require('../utils/app-error');
 
 class YearService {
   async getAllYears(userId) {
@@ -17,7 +18,7 @@ class YearService {
     logger.info(`[YearService] Buscando año por ID: ${id}`);
     const yearObj = await yearRepository.getById(id);
     if (!yearObj) {
-      throw { statusCode: 404, message: 'Año no encontrado' };
+      throw new AppError(404, 'Año no encontrado');
     }
     const months = await monthRepository.getByYearId(id);
     return { ...yearObj, months };
@@ -28,7 +29,7 @@ class YearService {
 
     const existingYears = await yearRepository.getAll(userId);
     if (existingYears.some(y => y.year === parseInt(year))) {
-      throw { statusCode: 400, message: `El año ${year} ya ha sido creado previamente` };
+      throw new AppError(400, `El año ${year} ya ha sido creado previamente`);
     }
 
     const yearId = await yearRepository.create(year, startMonth, 12, userId);
@@ -70,7 +71,7 @@ class YearService {
     logger.info(`[YearService] Eliminando año ID: ${id}`);
     const ownerId = await ownershipRepository.getYearOwnerId(id);
     if (!ownerId || (userId != null && Number(ownerId) !== Number(userId))) {
-      throw { statusCode: 404, message: 'Año no encontrado' };
+      throw new AppError(404, 'Año no encontrado');
     }
     return await yearRepository.delete(id, ownerId);
   }

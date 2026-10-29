@@ -17,27 +17,30 @@ back/
 │   ├── fix-years-unique.sql       # UNIQUE(user_id, year) en tabla years
 │   └── fix-categories-null.sql
 ├── src/
-│   ├── app.js                     # Configuración de Express, CORS, rutas, healthcheck y SPA fallback
+│   ├── app.js                     # Configuración de Express, trust proxy, Helmet, CORS, rate-limit, rutas y SPA fallback
 │   ├── server.js                  # Entrypoint HTTP (listen 0.0.0.0) + Graceful Shutdown (SIGTERM/SIGINT)
 │   ├── config/
 │   │   ├── environment.js         # Carga y validación estricta de variables de entorno (fail-fast)
 │   │   ├── database.js            # Pool MySQL2 (connectionLimit=4, keepAlive, dateStrings=true)
-│   │   └── logger.js              # Logger Winston (consola + back/logs/error.log y combined.log)
+│   │   └── logger.js              # Logger Winston + helpers maskEmail / maskEmailsInText
 │   ├── middlewares/
+│   │   ├── request-id.middleware.js       # Genera/propaga req.id (UUID) y cabecera X-Request-Id
+│   │   ├── rate-limit.middleware.js       # Rate limiters (login IP+email, register, refresh y global /api)
 │   │   ├── auth.middleware.js             # Verifica JWT Bearer y adjunta req.user
 │   │   ├── role.middleware.js             # RBAC: authorize(...roles)
 │   │   ├── ownership.middleware.js        # Resuelve req.effectiveUserId y req.isViewer (?viewAs=)
 │   │   ├── resource-ownership.middleware.js # Anti-IDOR: assertOwnership(resourceType, getId, { write })
-│   │   ├── request-logger.middleware.js   # Log HTTP con método, ruta, status y duración (ms)
-│   │   └── error-handler.middleware.js    # Manejador centralizado de errores
+│   │   ├── request-logger.middleware.js   # Log HTTP con reqId, método, ruta, status, duración y userId (sin emails)
+│   │   └── error-handler.middleware.js    # Manejador centralizado (AppError, Multer, CORS, 500 oculto + requestId)
 │   ├── routes/                    # Definición de endpoints (*.routes.js)
 │   ├── controllers/               # Orquestación HTTP (*.controller.js)
 │   ├── services/                  # Lógica de negocio (*.service.js)
 │   ├── repositories/              # Consultas SQL parametrizadas (*.repository.js)
 │   │   └── ownership.repository.js # Resolución del user_id propietario para cada entidad
 │   ├── utils/
+│   │   ├── app-error.js           # Clase AppError(statusCode, message, code) para errores operacionales
 │   │   └── date-helpers.js        # Cálculo de semanas calendario, días del mes y rangos en America/Bogota
-│   └── scripts/                   # Scripts de inicialización, migración y pruebas de propiedad
+│   └── scripts/                   # Scripts de inicialización, migración y pruebas (ownership y seguridad base)
 └── Dockerfile                     # Imagen de producción (node:20-alpine, CMD ["node", "src/server.js"])
 ```
 
@@ -68,10 +71,12 @@ Todo endpoint que opere sobre datos de un usuario debe aplicar los middlewares e
   ```json
   { "success": true, "data": { ... }, "message": "Opcional" }
   ```
-- Errores controlados en servicios: lanzar un error con `statusCode` y `message` (o `AppError` tras la Fase 1) y capturarlo en el controlador con `next(error)`.
+- Errores controlados en servicios/controladores: lanzar siempre `throw new AppError(statusCode, message, code)` (importado de `src/utils/app-error.js`) y capturarlo en el controlador con `next(error)`. Prohibido lanzar objetos literales `throw { statusCode, message }`.
+- Errores 5xx o no operacionales devuelven `{ "success": false, "message": "Error interno del servidor", "requestId": "..." }` sin exponer detalles SQL ni `err.stack` fuera de `development`.
 
-### Regla 5 — Logging
+### Regla 5 — Logging y Privacidad (PII)
 - Usar `src/config/logger.js` (`logger.info`, `logger.warn`, `logger.error`, `logger.debug`) con prefijo del componente, por ejemplo: `[ExpenseService] ...`.
+- **Prohibido registrar emails en texto plano en nivel `info`**: usar `userId` o enmascarar con `logger.maskEmail(email)` (`j***@dominio.com`).
 - No commitear archivos `.log` de `back/logs/`.
 
 ---
@@ -80,7 +85,8 @@ Todo endpoint que opere sobre datos de un usuario debe aplicar los middlewares e
 
 ```bash
 cd back
-npm run dev                  # Servidor en desarrollo con nodemon (src/server.js)
-npm start                    # Servidor en producción (node src/server.js)
-node src/scripts/test-ownership.js # Prueba de verificación de reglas de propiedad / anti-IDOR
+npm run dev                        # Servidor en desarrollo con nodemon (src/server.js)
+npm start                          # Servidor en producción (node src/server.js)
+npm run test:ownership             # Prueba de verificación de reglas de propiedad / anti-IDOR
+npm run test:security              # Prueba de Helmet, Rate Limit, AppError, RequestId y ocultamiento 500
 ```

@@ -4,6 +4,7 @@ const incomeRepository = require('../repositories/income.repository');
 const expenseRepository = require('../repositories/expense.repository');
 const challengeRepository = require('../repositories/challenge.repository');
 const logger = require('../config/logger');
+const AppError = require('../utils/app-error');
 
 class MonthService {
   async getMonthsByYear(yearId) {
@@ -14,7 +15,7 @@ class MonthService {
     logger.info(`[MonthService] Cargando detalles completos para el mes ID ${monthId}`);
     const month = await monthRepository.getById(monthId);
     if (!month) {
-      throw { statusCode: 404, message: 'Mes no encontrado' };
+      throw new AppError(404, 'Mes no encontrado');
     }
 
     const weeks = await weekRepository.getByMonthId(monthId);

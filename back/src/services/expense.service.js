@@ -2,6 +2,7 @@ const expenseRepository = require('../repositories/expense.repository');
 const weekRepository = require('../repositories/week.repository');
 const ownershipRepository = require('../repositories/ownership.repository');
 const logger = require('../config/logger');
+const AppError = require('../utils/app-error');
 
 class ExpenseService {
   async getBudgetExpensesByMonth(monthId) {
@@ -22,12 +23,12 @@ class ExpenseService {
   async createBudgetExpense(expenseData, userId = null) {
     let { month_id, category_id, date, concept, budget_amount } = expenseData;
     if (!month_id || !category_id || !date || !concept || budget_amount == null) {
-      throw { statusCode: 400, message: 'Faltan campos obligatorios para el gasto presupuestado' };
+      throw new AppError(400, 'Faltan campos obligatorios para el gasto presupuestado');
     }
 
     const ownerId = await ownershipRepository.getMonthOwnerId(month_id);
     if (!ownerId || (userId != null && Number(ownerId) !== Number(userId))) {
-      throw { statusCode: 404, message: 'Mes no encontrado' };
+      throw new AppError(404, 'Mes no encontrado');
     }
 
     if (date) {
@@ -35,7 +36,7 @@ class ExpenseService {
       if (matchedWeek) {
         const newMonthOwnerId = await ownershipRepository.getMonthOwnerId(matchedWeek.month_id);
         if (!newMonthOwnerId || Number(newMonthOwnerId) !== Number(ownerId)) {
-          throw { statusCode: 404, message: 'Mes no encontrado' };
+          throw new AppError(404, 'Mes no encontrado');
         }
         expenseData.week_id = matchedWeek.id;
         expenseData.month_id = matchedWeek.month_id;
@@ -48,14 +49,14 @@ class ExpenseService {
   async updateBudgetExpense(id, expenseData, userId = null) {
     const ownerId = await ownershipRepository.getBudgetExpenseOwnerId(id);
     if (!ownerId || (userId != null && Number(ownerId) !== Number(userId))) {
-      throw { statusCode: 404, message: 'Gasto presupuestado no encontrado' };
+      throw new AppError(404, 'Gasto presupuestado no encontrado');
     }
 
     const { date, month_id } = expenseData;
     if (month_id != null) {
       const monthOwnerId = await ownershipRepository.getMonthOwnerId(month_id);
       if (!monthOwnerId || Number(monthOwnerId) !== Number(ownerId)) {
-        throw { statusCode: 404, message: 'Mes no encontrado' };
+        throw new AppError(404, 'Mes no encontrado');
       }
     }
 
@@ -72,7 +73,7 @@ class ExpenseService {
         if (matchedWeek) {
           const newMonthOwnerId = await ownershipRepository.getMonthOwnerId(matchedWeek.month_id);
           if (!newMonthOwnerId || Number(newMonthOwnerId) !== Number(ownerId)) {
-            throw { statusCode: 404, message: 'Mes no encontrado' };
+            throw new AppError(404, 'Mes no encontrado');
           }
           expenseData.week_id = matchedWeek.id;
           expenseData.month_id = matchedWeek.month_id;
@@ -86,7 +87,7 @@ class ExpenseService {
   async deleteBudgetExpense(id, userId = null) {
     const ownerId = await ownershipRepository.getBudgetExpenseOwnerId(id);
     if (!ownerId || (userId != null && Number(ownerId) !== Number(userId))) {
-      throw { statusCode: 404, message: 'Gasto presupuestado no encontrado' };
+      throw new AppError(404, 'Gasto presupuestado no encontrado');
     }
     return await expenseRepository.deleteBudgetExpense(id);
   }
@@ -94,12 +95,12 @@ class ExpenseService {
   async createExtraExpense(expenseData, userId = null) {
     let { month_id, category_id, date, concept, amount } = expenseData;
     if (!month_id || !category_id || !date || !concept || amount == null) {
-      throw { statusCode: 400, message: 'Faltan campos obligatorios para el gasto extra' };
+      throw new AppError(400, 'Faltan campos obligatorios para el gasto extra');
     }
 
     const ownerId = await ownershipRepository.getMonthOwnerId(month_id);
     if (!ownerId || (userId != null && Number(ownerId) !== Number(userId))) {
-      throw { statusCode: 404, message: 'Mes no encontrado' };
+      throw new AppError(404, 'Mes no encontrado');
     }
 
     if (date) {
@@ -107,7 +108,7 @@ class ExpenseService {
       if (matchedWeek) {
         const newMonthOwnerId = await ownershipRepository.getMonthOwnerId(matchedWeek.month_id);
         if (!newMonthOwnerId || Number(newMonthOwnerId) !== Number(ownerId)) {
-          throw { statusCode: 404, message: 'Mes no encontrado' };
+          throw new AppError(404, 'Mes no encontrado');
         }
         expenseData.week_id = matchedWeek.id;
         expenseData.month_id = matchedWeek.month_id;
@@ -120,14 +121,14 @@ class ExpenseService {
   async updateExtraExpense(id, expenseData, userId = null) {
     const ownerId = await ownershipRepository.getExtraExpenseOwnerId(id);
     if (!ownerId || (userId != null && Number(ownerId) !== Number(userId))) {
-      throw { statusCode: 404, message: 'Gasto extra no encontrado' };
+      throw new AppError(404, 'Gasto extra no encontrado');
     }
 
     const { date, month_id } = expenseData;
     if (month_id != null) {
       const monthOwnerId = await ownershipRepository.getMonthOwnerId(month_id);
       if (!monthOwnerId || Number(monthOwnerId) !== Number(ownerId)) {
-        throw { statusCode: 404, message: 'Mes no encontrado' };
+        throw new AppError(404, 'Mes no encontrado');
       }
     }
 
@@ -144,7 +145,7 @@ class ExpenseService {
         if (matchedWeek) {
           const newMonthOwnerId = await ownershipRepository.getMonthOwnerId(matchedWeek.month_id);
           if (!newMonthOwnerId || Number(newMonthOwnerId) !== Number(ownerId)) {
-            throw { statusCode: 404, message: 'Mes no encontrado' };
+            throw new AppError(404, 'Mes no encontrado');
           }
           expenseData.week_id = matchedWeek.id;
           expenseData.month_id = matchedWeek.month_id;
@@ -158,7 +159,7 @@ class ExpenseService {
   async deleteExtraExpense(id, userId = null) {
     const ownerId = await ownershipRepository.getExtraExpenseOwnerId(id);
     if (!ownerId || (userId != null && Number(ownerId) !== Number(userId))) {
-      throw { statusCode: 404, message: 'Gasto extra no encontrado' };
+      throw new AppError(404, 'Gasto extra no encontrado');
     }
     return await expenseRepository.deleteExtraExpense(id);
   }

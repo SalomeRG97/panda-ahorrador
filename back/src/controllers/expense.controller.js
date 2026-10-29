@@ -1,6 +1,7 @@
 const expenseService = require('../services/expense.service');
 const logger = require('../config/logger');
 const recurrenceService = require('../services/recurrence.service');
+const AppError = require('../utils/app-error');
 
 class ExpenseController {
   // GASTOS PRESUPUESTADOS
@@ -11,7 +12,7 @@ class ExpenseController {
       if (req.body.recurrence && req.body.recurrence.frequency) {
         const { date, concept, budget_amount, category_id, month_id } = req.body;
         if (!month_id || !category_id || !date || !concept || budget_amount == null) {
-          throw { statusCode: 400, message: 'Faltan campos obligatorios para el gasto presupuestado' };
+          throw new AppError(400, 'Faltan campos obligatorios para el gasto presupuestado');
         }
         const result = await recurrenceService.createSeries(userId, req.body);
         return res.status(201).json({ success: true, data: { id: null, ...req.body, ...result } });

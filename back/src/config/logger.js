@@ -12,6 +12,23 @@ const customFormat = format.printf(({ timestamp, level, message, ...metadata }) 
   return `[${timestamp}] [${level.toUpperCase()}] ${message} ${metaStr}`;
 });
 
+const maskEmail = (email) => {
+  if (!email || typeof email !== 'string' || !email.includes('@')) {
+    return '***';
+  }
+  const [local, domain] = email.trim().split('@');
+  if (!local || !domain) return '***';
+  return `${local[0]}***@${domain}`;
+};
+
+const maskEmailsInText = (text) => {
+  if (typeof text !== 'string') return text;
+  return text.replace(
+    /([a-zA-Z0-9._%+-])[a-zA-Z0-9._%+-]*@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g,
+    '$1***@$2'
+  );
+};
+
 const logger = createLogger({
   level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
   format: format.combine(
@@ -35,5 +52,8 @@ const logger = createLogger({
     })
   ]
 });
+
+logger.maskEmail = maskEmail;
+logger.maskEmailsInText = maskEmailsInText;
 
 module.exports = logger;
