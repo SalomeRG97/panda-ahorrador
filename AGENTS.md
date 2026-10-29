@@ -79,7 +79,7 @@ Permite a los usuarios:
 | Tabla | Clave / FK | Descripción |
 |---|---|---|
 | `roles` | `id` PK | Catálogo de roles: `1=admin`, `2=regular`, `3=viewer`. |
-| `users` | `id` PK, `role_id` FK | Usuarios registrados (`email`, `username`, `password_hash`, `is_active`, `avatar_url`). |
+| `users` | `id` PK, `role_id` FK | Usuarios registrados (`email`, `username`, `password_hash`, `is_active`, `must_change_password`, `avatar_url`). |
 | `refresh_tokens` | `id` PK, `user_id` FK | Sesiones de refresco (`token_hash` SHA-256 UNIQUE, `family_id` UUID, `expires_at`, `revoked_at`, `user_agent`, `ip`). |
 | `user_shares` | `owner_id`, `viewer_id` FK | Relación de compartición de datos de un `regular` hacia un `viewer`. |
 | `years` | `id` PK, `user_id` FK | Año financiero de un usuario (`year`, `start_month`, `end_month`). Unique `(user_id, year)`. |

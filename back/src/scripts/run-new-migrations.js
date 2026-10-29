@@ -70,6 +70,19 @@ async function runNewMigrations() {
       }
     }
 
+    // 2e. Migración must_change_password (002-must-change-password.sql)
+    const sqlMustChangePwdPath = path.join(__dirname, '../../database/migrations/002-must-change-password.sql');
+    if (fs.existsSync(sqlMustChangePwdPath)) {
+      const sqlMustChangePwd = fs.readFileSync(sqlMustChangePwdPath, 'utf8');
+      console.log('📜 Ejecutando migrations/002-must-change-password.sql...');
+      try {
+        await connection.query(sqlMustChangePwd);
+        console.log('✅ Columna users.must_change_password verificada/creada.');
+      } catch (err) {
+        console.error('⚠️ Detalle migración must_change_password:', err.message);
+      }
+    }
+
     // 3. Recalcular Semanas (Domingo a Sábado)
     console.log('🗓️ Verificando alineación de semanas (Domingo a Sábado)...');
     const { calculateWeeksForMonth } = require('../utils/date-helpers');

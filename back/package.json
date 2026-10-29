@@ -11,7 +11,8 @@
     "migrate-new": "node src/scripts/run-new-migrations.js",
     "test:ownership": "node src/scripts/test-ownership.js",
     "test:security": "node src/scripts/test-security-base.js",
-    "test:auth": "node src/scripts/test-refresh-tokens.js"
+    "test:auth": "node src/scripts/test-refresh-tokens.js",
+    "test:prompt7": "node src/scripts/test-prompt7.js"
   },
   "keywords": [
     "finance",

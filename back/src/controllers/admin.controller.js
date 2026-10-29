@@ -27,7 +27,7 @@ class AdminController {
     try {
       const { id } = req.params;
       logger.info(`[AdminController] PUT /api/admin/users/${id}`);
-      const user = await authService.adminUpdateUser(parseInt(id), req.body);
+      const user = await authService.adminUpdateUser(parseInt(id, 10), req.body, req.user?.id);
       res.json({ success: true, data: user });
     } catch (error) {
       next(error);
@@ -38,7 +38,7 @@ class AdminController {
     try {
       const { id } = req.params;
       logger.info(`[AdminController] DELETE /api/admin/users/${id}`);
-      await authService.adminDeleteUser(parseInt(id));
+      await authService.adminDeleteUser(parseInt(id, 10), req.user?.id);
       res.json({ success: true, message: 'Usuario desactivado' });
     } catch (error) {
       next(error);
@@ -50,7 +50,7 @@ class AdminController {
       const { id } = req.params;
       const { isActive } = req.body;
       logger.info(`[AdminController] PUT /api/admin/users/${id}/status -> active: ${isActive}`);
-      const user = await authService.toggleUserStatus(parseInt(id, 10), isActive);
+      const user = await authService.toggleUserStatus(parseInt(id, 10), isActive, req.user?.id);
       res.json({ success: true, data: user });
     } catch (error) {
       next(error);

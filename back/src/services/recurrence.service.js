@@ -97,6 +97,12 @@ class RecurrenceService {
       throw new AppError(400, 'La fecha final no puede ser anterior a la fecha del gasto');
     }
 
+    await expenseService.assertValidCategoryForUser(data.category_id, userId);
+    if (data.payment_method_id !== undefined && data.payment_method_id !== null) {
+      await expenseService.assertValidPaymentMethodForUser(Number(data.payment_method_id), userId);
+    }
+    await expenseService.assertValidPaymentMethodForUser(data.payment_method, userId);
+
     const ruleId = await repo.create(userId, {
       category_id: data.category_id,
       concept: data.concept,

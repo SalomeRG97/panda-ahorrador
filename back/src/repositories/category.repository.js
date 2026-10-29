@@ -79,6 +79,14 @@ class CategoryRepository {
     );
     return rows[0] || null;
   }
+
+  async findGlobalCategoryByName(name) {
+    const [rows] = await db.query(
+      'SELECT * FROM categories WHERE user_id IS NULL AND name = ?',
+      [name]
+    );
+    return rows[0] || null;
+  }
 }
 
 module.exports = new CategoryRepository();

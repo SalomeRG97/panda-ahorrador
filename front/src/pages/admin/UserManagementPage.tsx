@@ -11,6 +11,10 @@ export const UserManagementPage: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
+  const [generatedPasswordModal, setGeneratedPasswordModal] = useState<{
+    email: string;
+    password: string;
+  } | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -58,10 +62,18 @@ export const UserManagementPage: React.FC = () => {
     e.preventDefault();
     try {
       if (isEditing && editingUserId) {
-        await api.put(`/admin/users/${editingUserId}`, formData);
+        const { name, username, email, role, isActive } = formData;
+        await api.put(`/admin/users/${editingUserId}`, { name, username, email, role, isActive });
         success('Usuario actualizado correctamente ✨');
       } else {
-        await api.post('/admin/users', formData);
+        const res = await api.post<{ success: boolean; data: User }>('/admin/users', formData);
+        const createdUser = res.data?.data;
+        if (createdUser?.temporaryPassword) {
+          setGeneratedPasswordModal({
+            email: createdUser.email,
+            password: createdUser.temporaryPassword,
+          });
+        }
         success('Usuario creado exitosamente 🌸');
       }
       setShowModal(false);
@@ -238,13 +250,13 @@ export const UserManagementPage: React.FC = () => {
 
                   {!isEditing && (
                     <div className="form-group">
-                      <label htmlFor="modalPassword">Contraseña Inicial</label>
+                      <label htmlFor="modalPassword">Contraseña Inicial (Opcional)</label>
                       <input
                         type="password"
                         id="modalPassword"
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        placeholder="Temporal123!"
+                        placeholder="Vacío = se genera una aleatoria de 16 caracteres"
                         className="form-control"
                       />
                     </div>
@@ -260,6 +272,51 @@ export const UserManagementPage: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      {generatedPasswordModal && (
+        <ModalPortal isOpen={!!generatedPasswordModal}>
+          <div className="modal-overlay" onClick={() => setGeneratedPasswordModal(null)}>
+            <div className="modal-card card-pastel" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>
+                  <i className="fa-solid fa-key"></i> Contraseña Temporal Generada
+                </h3>
+                <button onClick={() => setGeneratedPasswordModal(null)} className="close-btn">&times;</button>
+              </div>
+              <div className="modal-body">
+                <p style={{ fontSize: '0.9rem', marginBottom: '12px' }}>
+                  Se generó una contraseña temporal única para <strong>{generatedPasswordModal.email}</strong>.
+                  Esta contraseña <strong>solo se muestra una vez</strong> y el usuario deberá cambiarla en su primer inicio de sesión:
+                </p>
+                <div
+                  style={{
+                    padding: '12px 16px',
+                    background: '#FFF0F4',
+                    border: '1.5px dashed #D4566A',
+                    borderRadius: '10px',
+                    fontFamily: 'monospace',
+                    fontSize: '1.1rem',
+                    fontWeight: 700,
+                    textAlign: 'center',
+                    userSelect: 'all',
+                  }}
+                >
+                  {generatedPasswordModal.password}
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  onClick={() => setGeneratedPasswordModal(null)}
+                  className="btn-pastel btn-primary-pastel"
+                >
+                  Entendido
+                </button>
+              </div>
             </div>
           </div>
         </ModalPortal>

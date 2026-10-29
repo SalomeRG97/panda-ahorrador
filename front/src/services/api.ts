@@ -116,6 +116,19 @@ api.interceptors.response.use(
       originalRequest.url?.includes(path)
     );
 
+    if (
+      error.response?.status === 403 &&
+      error.response?.data?.code === 'PASSWORD_CHANGE_REQUIRED'
+    ) {
+      if (
+        typeof window !== 'undefined' &&
+        window.location.pathname !== '/change-password'
+      ) {
+        window.location.href = '/change-password';
+      }
+      return Promise.reject(error);
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry && !isAuthBypass) {
       if (isRefreshing) {
         originalRequest._retry = true;

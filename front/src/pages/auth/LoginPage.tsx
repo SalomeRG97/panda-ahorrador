@@ -24,7 +24,12 @@ export const LoginPage: React.FC = () => {
 
     setLoading(true);
     try {
-      await login({ email, password });
+      const authData = await login({ email, password });
+      if (authData?.mustChangePassword || authData?.user?.mustChangePassword) {
+        warning('Debes cambiar tu contraseña temporal antes de continuar 🔐');
+        navigate('/change-password', { replace: true });
+        return;
+      }
       success('¡Bienvenido de nuevo! 🌸');
       navigate(from, { replace: true });
     } catch (err: any) {

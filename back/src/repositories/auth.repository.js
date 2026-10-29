@@ -31,7 +31,7 @@ class AuthRepository {
   async findUserById(id) {
     logger.debug(`[AuthRepository] Buscando usuario por ID: ${id}`);
     const [rows] = await db.query(
-      `SELECT u.id, u.email, u.username, u.name, u.avatar_url, u.is_active, u.created_at, u.updated_at, r.name as role_name, r.id as role_id
+      `SELECT u.id, u.email, u.username, u.name, u.avatar_url, u.is_active, u.must_change_password, u.created_at, u.updated_at, r.name as role_name, r.id as role_id
        FROM users u 
        JOIN roles r ON u.role_id = r.id 
        WHERE u.id = ?`,
@@ -40,19 +40,27 @@ class AuthRepository {
     return rows[0] || null;
   }
 
-  async createUser({ email, username, passwordHash, name, roleId }) {
+  async createUser({ email, username, passwordHash, name, roleId, mustChangePassword = false }) {
     logger.info(`[AuthRepository] Creando usuario: ${logger.maskEmail(email)} (${username})`);
     const [result] = await db.query(
-      `INSERT INTO users (email, username, password_hash, name, role_id) 
-       VALUES (?, ?, ?, ?, ?)`,
-      [email, username, passwordHash, name, roleId]
+      `INSERT INTO users (email, username, password_hash, name, role_id, must_change_password) 
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [email, username, passwordHash, name, roleId, Boolean(mustChangePassword)]
     );
     return result.insertId;
   }
 
   async updateUser(id, fields) {
     logger.info(`[AuthRepository] Actualizando usuario ID: ${id}`);
-    const allowedFields = ['email', 'username', 'name', 'avatar_url', 'is_active', 'role_id'];
+    const allowedFields = [
+      'email',
+      'username',
+      'name',
+      'avatar_url',
+      'is_active',
+      'role_id',
+      'must_change_password',
+    ];
     const updates = [];
     const values = [];
 
@@ -72,7 +80,10 @@ class AuthRepository {
 
   async updatePassword(id, passwordHash) {
     logger.info(`[AuthRepository] Actualizando contraseña para usuario ID: ${id}`);
-    await db.query('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, id]);
+    await db.query(
+      'UPDATE users SET password_hash = ?, must_change_password = FALSE WHERE id = ?',
+      [passwordHash, id]
+    );
     return true;
   }
 
@@ -82,10 +93,31 @@ class AuthRepository {
     return true;
   }
 
+  async countActiveAdminsExcluding(excludeUserId = null) {
+    if (excludeUserId !== null && excludeUserId !== undefined) {
+      const [rows] = await db.query(
+        `SELECT COUNT(*) AS count
+         FROM users u
+         JOIN roles r ON u.role_id = r.id
+         WHERE r.name = 'admin' AND u.is_active = TRUE AND u.id != ?`,
+        [excludeUserId]
+      );
+      return Number(rows[0]?.count || 0);
+    }
+
+    const [rows] = await db.query(
+      `SELECT COUNT(*) AS count
+       FROM users u
+       JOIN roles r ON u.role_id = r.id
+       WHERE r.name = 'admin' AND u.is_active = TRUE`
+    );
+    return Number(rows[0]?.count || 0);
+  }
+
   async getAllUsers() {
     logger.debug('[AuthRepository] Obteniendo todos los usuarios');
     const [rows] = await db.query(
-      `SELECT u.id, u.email, u.username, u.name, u.avatar_url, u.is_active, u.created_at, u.updated_at, r.name as role_name, r.id as role_id
+      `SELECT u.id, u.email, u.username, u.name, u.avatar_url, u.is_active, u.must_change_password, u.created_at, u.updated_at, r.name as role_name, r.id as role_id
        FROM users u 
        JOIN roles r ON u.role_id = r.id 
        ORDER BY u.created_at DESC`

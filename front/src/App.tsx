@@ -8,6 +8,7 @@ import { ProtectedRoute } from './components/common/ProtectedRoute';
 
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
+import { ForceChangePasswordPage } from './pages/auth/ForceChangePasswordPage';
 import { LandingPage } from './pages/landing/LandingPage';
 import { YearListPage } from './pages/years/YearListPage';
 import { YearDashboardPage } from './pages/years/YearDashboardPage';
@@ -32,6 +33,7 @@ export const App: React.FC = () => {
                 {/* Rutas públicas */}
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
+                <Route path="/change-password" element={<ForceChangePasswordPage />} />
 
                 {/* Rutas protegidas */}
                 <Route

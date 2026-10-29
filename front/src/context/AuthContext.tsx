@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { User, LoginRequest, RegisterRequest } from '../types';
+import { User, LoginRequest, RegisterRequest, AuthResponse } from '../types';
 import { AuthService } from '../services/auth.service';
 import { setAccessToken, registerAuthCallbacks } from '../services/api';
 
@@ -8,8 +8,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   userRole: string | null;
-  login: (credentials: LoginRequest) => Promise<void>;
-  register: (data: RegisterRequest) => Promise<void>;
+  login: (credentials: LoginRequest) => Promise<AuthResponse>;
+  register: (data: RegisterRequest) => Promise<AuthResponse>;
   logout: () => Promise<void>;
   logoutAll: () => Promise<void>;
   updateUser: (user: User) => void;
@@ -32,10 +32,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCurrentUser(null);
   }, []);
 
-  const handleAuthSuccess = useCallback((data: { accessToken: string; user: User }) => {
+  const handleAuthSuccess = useCallback((data: { accessToken: string; user: User; mustChangePassword?: boolean }) => {
+    const normalizedUser: User = {
+      ...data.user,
+      mustChangePassword: Boolean(data.mustChangePassword ?? data.user?.mustChangePassword),
+    };
     setAccessToken(data.accessToken);
-    localStorage.setItem('panda_user', JSON.stringify(data.user));
-    setCurrentUser(data.user);
+    localStorage.setItem('panda_user', JSON.stringify(normalizedUser));
+    setCurrentUser(normalizedUser);
   }, []);
 
   useEffect(() => {
@@ -78,14 +82,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [handleAuthSuccess, clearLocalSession]);
 
-  const login = async (credentials: LoginRequest) => {
+  const login = async (credentials: LoginRequest): Promise<AuthResponse> => {
     const data = await AuthService.login(credentials);
     handleAuthSuccess(data);
+    return data;
   };
 
-  const register = async (data: RegisterRequest) => {
+  const register = async (data: RegisterRequest): Promise<AuthResponse> => {
     const resData = await AuthService.register(data);
     handleAuthSuccess(resData);
+    return resData;
   };
 
   const logout = useCallback(async () => {

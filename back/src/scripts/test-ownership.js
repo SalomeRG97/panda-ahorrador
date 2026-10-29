@@ -132,6 +132,18 @@ const state = {
   user_shares: [
     { id: 1, owner_id: 2, viewer_id: 3 }, // B compartió con Viewer (id=3)
   ],
+  categories: [
+    { id: 1, name: 'Hogar', color: '#F4A6C1', icon: 'fa-house', user_id: null, isGlobal: 1 },
+    { id: 2, name: 'Alimentación', color: '#F7C59F', icon: 'fa-utensils', user_id: null, isGlobal: 1 },
+    { id: 10, name: 'Personal A', color: '#A8E6CF', icon: 'fa-star', user_id: 1, isGlobal: 0 },
+    { id: 20, name: 'Personal B', color: '#A8D8EA', icon: 'fa-heart', user_id: 2, isGlobal: 0 },
+  ],
+  payment_methods: [
+    { id: 1, user_id: 1, name: 'Transferencia' },
+    { id: 2, user_id: 1, name: 'Efectivo' },
+    { id: 3, user_id: 2, name: 'Transferencia' },
+    { id: 4, user_id: 2, name: 'Tarjeta' },
+  ],
   nextId: 9000,
 };
 
@@ -151,6 +163,22 @@ db.query = async (sqlRaw, params = []) => {
   if (sql.includes('FROM users u') && sql.includes('WHERE u.id = ?')) {
     const u = state.users.find((x) => x.id === Number(params[0]));
     return [u ? [u] : [], []];
+  }
+
+  // --- CATEGORIES & PAYMENT METHODS ---
+  if (sql.includes('FROM categories WHERE id = ?')) {
+    const c = state.categories.find((x) => x.id === Number(params[0]));
+    return [c ? [{ ...c, isGlobal: c.user_id === null ? 1 : 0 }] : [], []];
+  }
+  if (sql.includes('FROM payment_methods WHERE user_id = ? AND name = ?')) {
+    const pm = state.payment_methods.find(
+      (x) => x.user_id === Number(params[0]) && x.name === params[1]
+    );
+    return [pm ? [pm] : [], []];
+  }
+  if (sql.includes('FROM payment_methods WHERE id = ?')) {
+    const pm = state.payment_methods.find((x) => x.id === Number(params[0]));
+    return [pm ? [pm] : [], []];
   }
 
   // --- OWNERSHIP QUERIES ---

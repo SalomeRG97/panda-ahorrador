@@ -30,8 +30,9 @@ class CategoryController {
       const { id } = req.params;
       const { name, color, icon } = req.body;
       const userId = req.effectiveUserId || req.user.id;
+      const userRole = req.user ? req.user.role : null;
       logger.info(`[CategoryController] PUT /api/categories/${id} - User: ${userId}`);
-      const category = await categoryService.updateCategory(parseInt(id, 10), { name, color, icon }, userId);
+      const category = await categoryService.updateCategory(parseInt(id, 10), { name, color, icon }, userId, userRole);
       res.json({ success: true, data: category });
     } catch (error) {
       next(error);

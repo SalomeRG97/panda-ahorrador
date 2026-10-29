@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const config = require('../config/environment');
 const logger = require('../config/logger');
 const authRepository = require('../repositories/auth.repository');
+const AppError = require('../utils/app-error');
 
 const USER_CACHE_TTL_MS = 60 * 1000; // 60 segundos
 const userCache = new Map();
@@ -36,6 +37,7 @@ async function getUserWithCache(userId) {
     email: dbUser.email,
     role: dbUser.role_name || dbUser.role,
     is_active: Boolean(dbUser.is_active),
+    must_change_password: Boolean(dbUser.must_change_password),
   };
 
   userCache.set(numericId, {
@@ -44,6 +46,17 @@ async function getUserWithCache(userId) {
   });
 
   return normalizedUser;
+}
+
+function isAllowedDuringPasswordChange(req) {
+  const cleanPath = (req.originalUrl || '').split('?')[0].replace(/\/+$/, '');
+  const method = (req.method || '').toUpperCase();
+
+  if (method === 'PUT' && cleanPath === '/api/profile/password') return true;
+  if (method === 'POST' && (cleanPath === '/api/auth/logout' || cleanPath === '/api/auth/logout-all')) return true;
+  if (method === 'GET' && cleanPath === '/api/auth/me') return true;
+
+  return false;
 }
 
 const authenticate = async (req, res, next) => {
@@ -92,7 +105,21 @@ const authenticate = async (req, res, next) => {
       id: user.id,
       email: user.email,
       role: user.role,
+      mustChangePassword: Boolean(user.must_change_password),
     };
+
+    if (user.must_change_password && !isAllowedDuringPasswordChange(req)) {
+      logger.warn(
+        `[Auth] Bloqueo PASSWORD_CHANGE_REQUIRED para usuario ID ${user.id} en ${req.method} ${req.originalUrl}`
+      );
+      return next(
+        new AppError(
+          403,
+          'Debes cambiar tu contraseña antes de continuar',
+          'PASSWORD_CHANGE_REQUIRED'
+        )
+      );
+    }
 
     next();
   } catch (error) {

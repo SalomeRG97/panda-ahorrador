@@ -55,12 +55,19 @@ description: >-
   - Creados endpoints `POST /api/auth/logout` y `POST /api/auth/logout-all`, y revocación automática de todos los refresh tokens al cambiar contraseña o desactivar un usuario desde admin.
   - Actualizado `auth.middleware.js` para exigir `typ === 'access'`, cargar el usuario desde BD con caché en memoria de 60 s (`is_active` y rol real desde BD).
   - En el frontend (`front/src/services/api.ts`, `AuthContext.tsx`, `ProtectedRoute.tsx`, `SettingsPage.tsx`): `withCredentials: true`, access token solo en memoria, recuperación inicial de sesión vía `/auth/refresh` con loader, cola de refresh único para 401 concurrentes, eliminación de `panda_access_token`/`panda_refresh_token` de `localStorage`, y botón `"Cerrar sesión en todos los dispositivos"`.
+- [x] **Prompt 7 (Reglas de Categorías/Gastos, `must_change_password` en Creación por Admin, Whitelist en `adminUpdateUser` y Normalización de Email/Username):**
+  - En `category.service.updateCategory`: bloqueada la edición de categorías globales (`user_id IS NULL`) con `403 "No puedes modificar categorías predeterminadas"` salvo rol `admin`; `404` si pertenece a otro usuario; validación de `name` (≤ 50), `color` (hex `#RRGGBB`) e `icon` (≤ 30, `[a-z0-9- ]`); y verificación de duplicados (`409`) al renombrar.
+  - En `expense.service.js` y `recurrence.service.js`: verificado al crear o editar gastos que `category_id` sea global o pertenezca a `effectiveUserId` (`400` en caso contrario) y que `payment_method` pertenezca al usuario o sea `"Retiro de ahorros"` (`400` en caso contrario).
+  - En `auth.service.adminCreateUser`: eliminada la contraseña fija `'Temporal123!'`; si no se envía contraseña se genera una aleatoria criptográficamente segura de 16 caracteres que cumple `_validatePasswordStrength` y se devuelve una sola vez en la respuesta; validación de fortaleza si el admin envía contraseña.
+  - Creada migración `back/database/migrations/002-must-change-password.sql` (`users.must_change_password BOOLEAN NOT NULL DEFAULT FALSE`), activada en `TRUE` al crear usuarios por admin y limpiada a `FALSE` en `changePassword`.
+  - Si `must_change_password` es `TRUE`, el login devuelve el flag, el backend bloquea los demás endpoints con `403` (`code: 'PASSWORD_CHANGE_REQUIRED'`) en `auth.middleware.js`, y el frontend (`ForceChangePasswordPage.tsx`, `ProtectedRoute.tsx`, `LoginPage.tsx`, `api.ts`) redirige a `/change-password`.
+  - En `adminUpdateUser` (y `toggleUserStatus`/`adminDeleteUser`): lista blanca explícita (`name`, `email`, `username`, `role`, `isActive`), bloqueo de auto-degradación o auto-desactivación del propio admin y bloqueo para impedir que el sistema quede sin ningún `admin` activo.
+  - Normalización y validación de `email` (`trim` + `toLowerCase` + regex) y `username` (`trim`, 3–30 caracteres, `[a-zA-Z0-9_.]`) en `register`, `updateProfile`, `adminCreateUser` y `adminUpdateUser`.
 
 ---
 
 ## 🔴 En Progreso / Próximo Paso: Fase 1 — Seguridad Base
 
-- [ ] **Prompt 7:** Reglas de negocio en categorías (bloquear edición de globales a no-admin, validar hex/icono y pertenencia de `category_id` al crear gastos), eliminar contraseña fija `'Temporal123!'` en creación por admin y agregar flujo `must_change_password`.
 - [ ] **Prompt 8:** Validación centralizada de entrada con `zod` (`validate.middleware.js` y esquemas en `back/src/validators/`).
 
 ---

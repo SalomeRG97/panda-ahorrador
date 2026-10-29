@@ -31,7 +31,7 @@ front/
     │       ├── ModalPortal.tsx          # Portal React para modales sobre document.body
     │       └── ChineseDecoration.tsx    # Decoración visual temática
     ├── pages/
-    │   ├── auth/                        # LoginPage.tsx, RegisterPage.tsx
+    │   ├── auth/                        # LoginPage.tsx, RegisterPage.tsx, ForceChangePasswordPage.tsx
     │   ├── landing/                     # LandingPage.tsx (inicio, accesos directos al día/semana/mes actual)
     │   ├── years/                       # YearListPage.tsx, YearDashboardPage.tsx (gráficos Chart.js)
     │   ├── months/                      # MonthLayoutPage.tsx (tabs: Calendario, Ingresos, Presupuesto, Extra, Resumen, Retos)

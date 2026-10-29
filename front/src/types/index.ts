@@ -7,6 +7,8 @@ export interface User {
   roleId: number;
   avatarUrl: string | null;
   isActive: boolean;
+  mustChangePassword?: boolean;
+  temporaryPassword?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -26,6 +28,7 @@ export interface RegisterRequest {
 export interface AuthResponse {
   user: User;
   accessToken: string;
+  mustChangePassword?: boolean;
 }
 
 export interface Role {

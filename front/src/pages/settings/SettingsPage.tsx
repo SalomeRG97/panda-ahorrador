@@ -34,7 +34,7 @@ export const SettingsPage: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [showCatModal, setShowCatModal] = useState(false);
   const [editingCatId, setEditingCatId] = useState<number | null>(null);
-  const [catForm, setCatForm] = useState({ name: '', color: '#F4A6C1', icon: '📦' });
+  const [catForm, setCatForm] = useState({ name: '', color: '#F4A6C1', icon: 'fa-box' });
 
   // Medios de pago
   const [paymentMethods, setPaymentMethods] = useState<{ id: number; name: string }[]>([]);
@@ -200,7 +200,7 @@ export const SettingsPage: React.FC = () => {
   // Categorías CRUD
   const openCatModal = () => {
     setEditingCatId(null);
-    setCatForm({ name: '', color: '#F4A6C1', icon: '📦' });
+    setCatForm({ name: '', color: '#F4A6C1', icon: 'fa-box' });
     setShowCatModal(true);
   };
 
@@ -475,9 +475,20 @@ export const SettingsPage: React.FC = () => {
                   </div>
                 </div>
                 <div className="cat-card-actions">
-                  <button onClick={() => editCategory(cat)} className="btn-pastel btn-secondary-pastel btn-xs">
-                    <i className="fa-solid fa-pen"></i> Editar
-                  </button>
+                  {cat.isGlobal && currentUser?.role !== 'admin' ? (
+                    <button
+                      className="btn-pastel btn-secondary-pastel btn-xs"
+                      disabled
+                      style={{ opacity: 0.45, cursor: 'not-allowed' }}
+                      title="No puedes modificar categorías predeterminadas"
+                    >
+                      <i className="fa-solid fa-pen"></i> Editar
+                    </button>
+                  ) : (
+                    <button onClick={() => editCategory(cat)} className="btn-pastel btn-secondary-pastel btn-xs">
+                      <i className="fa-solid fa-pen"></i> Editar
+                    </button>
+                  )}
                   {cat.isGlobal ? (
                     <button
                       className="btn-icon-danger btn-xs"
@@ -609,20 +620,20 @@ export const SettingsPage: React.FC = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Icono / Emoji:</label>
+                  <label>Icono (solo [a-z0-9- ], máx. 30):</label>
                   <div className="emoji-picker-row">
                     <input
                       type="text"
                       value={catForm.icon}
                       onChange={(e) => setCatForm({ ...catForm, icon: e.target.value })}
-                      maxLength={4}
-                      placeholder="Ej: 📺"
+                      maxLength={30}
+                      placeholder="Ej: fa-tv, home, tag"
                       className="form-control emoji-input"
                     />
                     <div className="emoji-shortcuts">
-                      {['📺', '📚', '🎮', '✈️', '💊', '🛍️', '☕', '🏋️'].map((emoji) => (
-                        <span key={emoji} onClick={() => setCatForm({ ...catForm, icon: emoji })}>
-                          {emoji}
+                      {['fa-tv', 'fa-book', 'fa-gamepad', 'fa-plane', 'fa-pills', 'fa-bag-shopping', 'fa-mug-hot', 'fa-dumbbell'].map((iconName) => (
+                        <span key={iconName} onClick={() => setCatForm({ ...catForm, icon: iconName })} title={iconName}>
+                          <i className={`fa-solid ${iconName}`}></i>
                         </span>
                       ))}
                     </div>

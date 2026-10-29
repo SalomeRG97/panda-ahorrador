@@ -12,6 +12,18 @@ description: >-
 
 ---
 
+## [2026-10-28] Endurecimiento de Reglas de Negocio: Categorías/Medios en Gastos, `must_change_password` en Creación por Admin y Protección de Último Admin
+- **Decisión:**
+  1. En `category.service.updateCategory`: prohibir a usuarios no-admin modificar categorías globales (`user_id IS NULL`) devolviendo `403`, devolver `404` si la categoría pertenece a otro usuario, validar formato de `name` (≤ 50), `color` (`#RRGGBB`) e `icon` (≤ 30, `[a-z0-9- ]`), y verificar duplicados (`409`) al renombrar.
+  2. En `expense.service.js` y `recurrence.service.js`: validar al crear o actualizar gastos que `category_id` sea global o pertenezca a `effectiveUserId` y que `payment_method` pertenezca al usuario o sea `"Retiro de ahorros"` (`400` en caso contrario).
+  3. Eliminar la contraseña por defecto `'Temporal123!'` en `adminCreateUser`, generando una contraseña aleatoria criptográficamente segura de 16 caracteres (`crypto.randomInt`) devuelta una sola vez, y marcar `users.must_change_password = TRUE` (migración `002-must-change-password.sql`).
+  4. Bloquear en `auth.middleware.js` cualquier endpoint distinto de `PUT /api/profile/password`, `GET /api/auth/me` y `POST /api/auth/logout(-all)` con `403` (`code: 'PASSWORD_CHANGE_REQUIRED'`) mientras `must_change_password` sea `TRUE`, redirigiendo en el frontend a `/change-password` (`ForceChangePasswordPage.tsx`).
+  5. Aplicar lista blanca explícita (`name`, `email`, `username`, `role`, `isActive`) en `adminUpdateUser`, impedir que un admin se quite el rol o se desactive a sí mismo, y garantizar que nunca quede el sistema con 0 administradores activos.
+- **Por qué:** Evitar que un usuario altere categorías globales compartidas por todos, asocie gastos a categorías/medios de pago ajenos, deje cuentas creadas por admin con una contraseña estática conocida o deje el sistema bloqueado sin administradores activos.
+- **Consecuencia:** Todo usuario creado por un administrador debe cambiar su contraseña en su primer inicio de sesión antes de operar en la plataforma.
+
+---
+
 ## [2026-10-28] Refresh Tokens Opacos con Rotación por Familias (`refresh_tokens`), Cookie `httpOnly` y Access Token en Memoria
 - **Decisión:**
   1. Firmar los Access Tokens con `JWT_ACCESS_SECRET`, payload `{ sub: id, role, typ: 'access' }` y expiración de `15m`, almacenándolos únicamente en memoria en el frontend (`front/src/services/api.ts`).

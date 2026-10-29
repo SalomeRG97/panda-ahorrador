@@ -15,7 +15,7 @@ export const Navbar: React.FC = () => {
   const [loadingPending, setLoadingPending] = useState(false);
 
   const loadPendingExpenses = () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || currentUser?.mustChangePassword) return;
     setLoadingPending(true);
     ApiService.getPendingBudgetExpenses()
       .then((data) => setPendingExpenses(data || []))
@@ -24,12 +24,12 @@ export const Navbar: React.FC = () => {
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !currentUser?.mustChangePassword) {
       loadPendingExpenses();
       const interval = setInterval(loadPendingExpenses, 60000);
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, currentUser?.mustChangePassword]);
 
   const getUnreadNewsCount = (): number => {
     try {

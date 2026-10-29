@@ -62,6 +62,7 @@ class AuthController {
         data: {
           user: result.user,
           accessToken: result.accessToken,
+          mustChangePassword: Boolean(result.mustChangePassword ?? result.user?.mustChangePassword),
         },
       });
     } catch (error) {
@@ -80,6 +81,7 @@ class AuthController {
         data: {
           user: result.user,
           accessToken: result.accessToken,
+          mustChangePassword: Boolean(result.mustChangePassword ?? result.user?.mustChangePassword),
         },
       });
     } catch (error) {

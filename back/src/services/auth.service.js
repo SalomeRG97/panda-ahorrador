@@ -11,6 +11,10 @@ const SALT_ROUNDS = 12;
 const REFRESH_TOKEN_BYTES = 64;
 const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 días
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const USERNAME_REGEX = /^[a-zA-Z0-9_.]{3,30}$/;
+const ADMIN_UPDATE_WHITELIST = ['name', 'email', 'username', 'role', 'isActive'];
+
 function toMySqlUtcDatetime(date) {
   return date.toISOString().slice(0, 19).replace('T', ' ');
 }
@@ -25,22 +29,80 @@ function parseMySqlUtcDatetime(val) {
 }
 
 class AuthService {
+  _normalizeAndValidateEmail(rawEmail) {
+    if (typeof rawEmail !== 'string') {
+      throw new AppError(400, 'El formato del email no es válido');
+    }
+    const email = rawEmail.trim().toLowerCase();
+    if (!email || email.length > 255 || !EMAIL_REGEX.test(email)) {
+      throw new AppError(400, 'El formato del email no es válido');
+    }
+    return email;
+  }
+
+  _normalizeAndValidateUsername(rawUsername) {
+    if (typeof rawUsername !== 'string') {
+      throw new AppError(400, 'El nombre de usuario no es válido');
+    }
+    const username = rawUsername.trim();
+    if (!USERNAME_REGEX.test(username)) {
+      throw new AppError(
+        400,
+        'El nombre de usuario debe tener entre 3 y 30 caracteres y solo usar [a-zA-Z0-9_.]'
+      );
+    }
+    return username;
+  }
+
+  _generateSecureRandomPassword(length = 16) {
+    const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const lower = 'abcdefghijklmnopqrstuvwxyz';
+    const digits = '0123456789';
+    const special = '@$!%*?&.#_-';
+    const all = upper + lower + digits + special;
+
+    const chars = [
+      upper[crypto.randomInt(upper.length)],
+      lower[crypto.randomInt(lower.length)],
+      digits[crypto.randomInt(digits.length)],
+      special[crypto.randomInt(special.length)],
+    ];
+
+    for (let i = chars.length; i < length; i++) {
+      chars.push(all[crypto.randomInt(all.length)]);
+    }
+
+    // Fisher-Yates shuffle con CSPRNG
+    for (let i = chars.length - 1; i > 0; i--) {
+      const j = crypto.randomInt(i + 1);
+      [chars[i], chars[j]] = [chars[j], chars[i]];
+    }
+
+    const password = chars.join('');
+    this._validatePasswordStrength(password);
+    return password;
+  }
+
   // --- REGISTRO ---
   async register(email, username, password, name, meta = {}) {
     logger.info(`[AuthService] Registrando nuevo usuario: ${logger.maskEmail(email)}`);
 
-    if (!email || !username || !password || !name) {
+    if (!email || !username || !password || !name || typeof name !== 'string' || !name.trim()) {
       throw new AppError(400, 'Todos los campos son requeridos');
     }
 
+    const cleanEmail = this._normalizeAndValidateEmail(email);
+    const cleanUsername = this._normalizeAndValidateUsername(username);
+    const cleanName = name.trim();
+
     this._validatePasswordStrength(password);
 
-    const existingEmail = await authRepository.findUserByEmail(email);
+    const existingEmail = await authRepository.findUserByEmail(cleanEmail);
     if (existingEmail) {
       throw new AppError(409, 'El email ya está registrado');
     }
 
-    const existingUsername = await authRepository.findUserByUsername(username);
+    const existingUsername = await authRepository.findUserByUsername(cleanUsername);
     if (existingUsername) {
       throw new AppError(409, 'El nombre de usuario ya está en uso');
     }
@@ -52,25 +114,32 @@ class AuthService {
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const userId = await authRepository.createUser({
-      email,
-      username,
+      email: cleanEmail,
+      username: cleanUsername,
       passwordHash,
-      name,
+      name: cleanName,
       roleId: role.id,
+      mustChangePassword: false,
     });
 
     const user = await authRepository.findUserById(userId);
     const accessToken = this._generateAccessToken(user);
     const refreshToken = await this._issueRefreshToken(user.id, null, meta);
 
-    return { user: this._sanitizeUser(user), accessToken, refreshToken };
+    return {
+      user: this._sanitizeUser(user),
+      accessToken,
+      refreshToken,
+      mustChangePassword: false,
+    };
   }
 
   // --- LOGIN ---
   async login(email, password, meta = {}) {
-    logger.info(`[AuthService] Intento de login: ${logger.maskEmail(email)}`);
+    const cleanEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    logger.info(`[AuthService] Intento de login: ${logger.maskEmail(cleanEmail)}`);
 
-    const user = await authRepository.findUserByEmail(email);
+    const user = await authRepository.findUserByEmail(cleanEmail);
     if (!user) {
       throw new AppError(401, 'Credenciales inválidas');
     }
@@ -86,11 +155,17 @@ class AuthService {
 
     const accessToken = this._generateAccessToken(user);
     const refreshToken = await this._issueRefreshToken(user.id, null, meta);
+    const sanitizedUser = this._sanitizeUser(user);
     logger.info(
-      `[AuthService] Login exitoso: usuario ID ${user.id} (${logger.maskEmail(email)}, rol: ${user.role_name})`
+      `[AuthService] Login exitoso: usuario ID ${user.id} (${logger.maskEmail(cleanEmail)}, rol: ${user.role_name})`
     );
 
-    return { user: this._sanitizeUser(user), accessToken, refreshToken };
+    return {
+      user: sanitizedUser,
+      accessToken,
+      refreshToken,
+      mustChangePassword: sanitizedUser.mustChangePassword,
+    };
   }
 
   // --- REFRESH TOKEN (con rotación y detección de reutilización por familia) ---
@@ -139,11 +214,13 @@ class AuthService {
       meta
     );
     const accessToken = this._generateAccessToken(user);
+    const sanitizedUser = this._sanitizeUser(user);
 
     return {
-      user: this._sanitizeUser(user),
+      user: sanitizedUser,
       accessToken,
       refreshToken: newRefreshToken,
+      mustChangePassword: sanitizedUser.mustChangePassword,
     };
   }
 
@@ -175,7 +252,7 @@ class AuthService {
     this._validatePasswordStrength(newPassword);
 
     const currentHash = await authRepository.getPasswordHash(userId);
-    const isMatch = await bcrypt.compare(oldPassword, currentHash);
+    const isMatch = await bcrypt.compare(oldPassword || '', currentHash || '');
     if (!isMatch) {
       throw new AppError(401, 'La contraseña actual es incorrecta');
     }
@@ -191,7 +268,7 @@ class AuthService {
   }
 
   _validatePasswordStrength(password) {
-    if (password.length < 8) {
+    if (typeof password !== 'string' || password.length < 8) {
       throw new AppError(400, 'La contraseña debe tener al menos 8 caracteres');
     }
     if (!/[A-Z]/.test(password)) {
@@ -217,27 +294,35 @@ class AuthService {
     return this._sanitizeUser(user);
   }
 
-  async updateProfile(userId, { name, email, username }) {
+  async updateProfile(userId, { name, email, username } = {}) {
     logger.info(`[AuthService] Actualizando perfil del usuario ID: ${userId}`);
 
-    if (email) {
-      const existing = await authRepository.findUserByEmail(email);
-      if (existing && existing.id !== userId) {
+    const fields = {};
+
+    if (name !== undefined && name !== null) {
+      if (typeof name !== 'string' || !name.trim()) {
+        throw new AppError(400, 'El nombre no puede estar vacío');
+      }
+      fields.name = name.trim();
+    }
+
+    if (email !== undefined && email !== null) {
+      const cleanEmail = this._normalizeAndValidateEmail(email);
+      const existing = await authRepository.findUserByEmail(cleanEmail);
+      if (existing && Number(existing.id) !== Number(userId)) {
         throw new AppError(409, 'El email ya está en uso por otro usuario');
       }
+      fields.email = cleanEmail;
     }
 
-    if (username) {
-      const existing = await authRepository.findUserByUsername(username);
-      if (existing && existing.id !== userId) {
+    if (username !== undefined && username !== null) {
+      const cleanUsername = this._normalizeAndValidateUsername(username);
+      const existing = await authRepository.findUserByUsername(cleanUsername);
+      if (existing && Number(existing.id) !== Number(userId)) {
         throw new AppError(409, 'El nombre de usuario ya está en uso');
       }
+      fields.username = cleanUsername;
     }
-
-    const fields = {};
-    if (name) fields.name = name;
-    if (email) fields.email = email;
-    if (username) fields.username = username;
 
     await authRepository.updateUser(userId, fields);
     invalidateUserCache(userId);
@@ -254,56 +339,178 @@ class AuthService {
   async adminCreateUser(email, username, name, roleName, password) {
     logger.info(`[AuthService] Admin creando usuario: ${logger.maskEmail(email)} con rol ${roleName}`);
 
+    if (!email || !username || !name || typeof name !== 'string' || !name.trim()) {
+      throw new AppError(400, 'Email, nombre de usuario y nombre son requeridos');
+    }
+
+    const cleanEmail = this._normalizeAndValidateEmail(email);
+    const cleanUsername = this._normalizeAndValidateUsername(username);
+    const cleanName = name.trim();
+
     const role = await authRepository.getRoleByName(roleName);
     if (!role) {
       throw new AppError(400, `Rol '${roleName}' no es válido`);
     }
 
-    const existingEmail = await authRepository.findUserByEmail(email);
+    const existingEmail = await authRepository.findUserByEmail(cleanEmail);
     if (existingEmail) {
       throw new AppError(409, 'El email ya está registrado');
     }
 
-    const existingUsername = await authRepository.findUserByUsername(username);
+    const existingUsername = await authRepository.findUserByUsername(cleanUsername);
     if (existingUsername) {
       throw new AppError(409, 'El nombre de usuario ya está en uso');
     }
 
-    const userPassword = password || 'Temporal123!';
+    let generatedPassword = null;
+    let userPassword = null;
+
+    if (password !== undefined && password !== null && String(password).length > 0) {
+      userPassword = String(password);
+      this._validatePasswordStrength(userPassword);
+    } else {
+      generatedPassword = this._generateSecureRandomPassword(16);
+      userPassword = generatedPassword;
+    }
+
     const passwordHash = await bcrypt.hash(userPassword, SALT_ROUNDS);
 
     const userId = await authRepository.createUser({
-      email,
-      username,
+      email: cleanEmail,
+      username: cleanUsername,
       passwordHash,
-      name,
+      name: cleanName,
       roleId: role.id,
+      mustChangePassword: true,
     });
 
     const user = await authRepository.findUserById(userId);
-    return this._sanitizeUser(user);
+    const sanitized = this._sanitizeUser(
+      user || {
+        id: userId,
+        email: cleanEmail,
+        username: cleanUsername,
+        name: cleanName,
+        role_name: roleName,
+        role_id: role.id,
+        is_active: true,
+        must_change_password: true,
+      }
+    );
+    sanitized.mustChangePassword = true;
+
+    if (generatedPassword) {
+      return {
+        ...sanitized,
+        temporaryPassword: generatedPassword,
+        generatedPassword,
+        password: generatedPassword,
+      };
+    }
+
+    return sanitized;
   }
 
-  async adminUpdateUser(userId, fields) {
+  async _assertNotRemovingLastAdmin(targetUser, { nextRoleName, nextIsActive }, actingAdminId = null) {
+    const targetId = Number(targetUser.id);
+    const isSelf = actingAdminId !== null && actingAdminId !== undefined && Number(actingAdminId) === targetId;
+
+    if (isSelf) {
+      if (nextRoleName !== undefined && nextRoleName !== 'admin') {
+        throw new AppError(400, 'No puedes quitarte el rol de administrador a ti mismo');
+      }
+      if (nextIsActive !== undefined && !nextIsActive) {
+        throw new AppError(400, 'No puedes desactivar tu propia cuenta de administrador');
+      }
+    }
+
+    const currentRole = targetUser.role_name || targetUser.role;
+    const currentlyActiveAdmin = currentRole === 'admin' && Boolean(targetUser.is_active);
+
+    if (currentlyActiveAdmin) {
+      const losingAdminRole = nextRoleName !== undefined && nextRoleName !== 'admin';
+      const beingDeactivated = nextIsActive !== undefined && !nextIsActive;
+
+      if (losingAdminRole || beingDeactivated) {
+        const remainingAdmins = await authRepository.countActiveAdminsExcluding(targetId);
+        if (remainingAdmins < 1) {
+          throw new AppError(400, 'El sistema debe contar con al menos un administrador activo');
+        }
+      }
+    }
+  }
+
+  async adminUpdateUser(userId, rawFields = {}, actingAdminId = null) {
     logger.info(`[AuthService] Admin actualizando usuario ID: ${userId}`);
 
-    if (fields.role) {
-      const role = await authRepository.getRoleByName(fields.role);
-      if (!role) {
-        throw new AppError(400, `Rol '${fields.role}' no es válido`);
+    const targetUser = await authRepository.findUserById(userId);
+    if (!targetUser) {
+      throw new AppError(404, 'Usuario no encontrado');
+    }
+
+    // Lista blanca explícita de campos permitidos
+    const whitelisted = {};
+    if (rawFields && typeof rawFields === 'object') {
+      for (const key of ADMIN_UPDATE_WHITELIST) {
+        if (rawFields[key] !== undefined) {
+          whitelisted[key] = rawFields[key];
+        }
       }
-      fields.role_id = role.id;
-      delete fields.role;
     }
 
-    if (fields.isActive !== undefined) {
-      fields.is_active = fields.isActive;
-      delete fields.isActive;
+    const nextIsActive =
+      whitelisted.isActive !== undefined
+        ? Boolean(whitelisted.isActive && whitelisted.isActive !== 'false' && whitelisted.isActive !== 0)
+        : undefined;
+
+    await this._assertNotRemovingLastAdmin(
+      targetUser,
+      { nextRoleName: whitelisted.role, nextIsActive },
+      actingAdminId
+    );
+
+    const dbFields = {};
+
+    if (whitelisted.name !== undefined) {
+      if (typeof whitelisted.name !== 'string' || !whitelisted.name.trim()) {
+        throw new AppError(400, 'El nombre no puede estar vacío');
+      }
+      dbFields.name = whitelisted.name.trim();
     }
 
-    await authRepository.updateUser(userId, fields);
+    if (whitelisted.email !== undefined) {
+      const cleanEmail = this._normalizeAndValidateEmail(whitelisted.email);
+      const existingEmail = await authRepository.findUserByEmail(cleanEmail);
+      if (existingEmail && Number(existingEmail.id) !== Number(userId)) {
+        throw new AppError(409, 'El email ya está en uso por otro usuario');
+      }
+      dbFields.email = cleanEmail;
+    }
 
-    if (fields.is_active === false || fields.is_active === 0) {
+    if (whitelisted.username !== undefined) {
+      const cleanUsername = this._normalizeAndValidateUsername(whitelisted.username);
+      const existingUsername = await authRepository.findUserByUsername(cleanUsername);
+      if (existingUsername && Number(existingUsername.id) !== Number(userId)) {
+        throw new AppError(409, 'El nombre de usuario ya está en uso');
+      }
+      dbFields.username = cleanUsername;
+    }
+
+    if (whitelisted.role !== undefined) {
+      const role = await authRepository.getRoleByName(whitelisted.role);
+      if (!role) {
+        throw new AppError(400, `Rol '${whitelisted.role}' no es válido`);
+      }
+      dbFields.role_id = role.id;
+    }
+
+    if (nextIsActive !== undefined) {
+      dbFields.is_active = nextIsActive;
+    }
+
+    await authRepository.updateUser(userId, dbFields);
+
+    if (dbFields.is_active === false) {
       await authRepository.revokeAllUserRefreshTokens(userId);
     }
     invalidateUserCache(userId);
@@ -312,18 +519,35 @@ class AuthService {
     return this._sanitizeUser(user);
   }
 
-  async adminDeleteUser(userId) {
+  async adminDeleteUser(userId, actingAdminId = null) {
     logger.info(`[AuthService] Admin eliminando (desactivando) usuario ID: ${userId}`);
+    const targetUser = await authRepository.findUserById(userId);
+    if (targetUser) {
+      await this._assertNotRemovingLastAdmin(
+        targetUser,
+        { nextIsActive: false },
+        actingAdminId
+      );
+    }
     await authRepository.deactivateUser(userId);
     await authRepository.revokeAllUserRefreshTokens(userId);
     invalidateUserCache(userId);
     return true;
   }
 
-  async toggleUserStatus(userId, isActive) {
+  async toggleUserStatus(userId, isActive, actingAdminId = null) {
     logger.info(`[AuthService] Admin cambiando estado de usuario ID ${userId} a active=${isActive}`);
-    await authRepository.updateUser(userId, { is_active: isActive });
-    if (!isActive) {
+    const normalizedActive = Boolean(isActive && isActive !== 'false' && isActive !== 0);
+    const targetUser = await authRepository.findUserById(userId);
+    if (targetUser) {
+      await this._assertNotRemovingLastAdmin(
+        targetUser,
+        { nextIsActive: normalizedActive },
+        actingAdminId
+      );
+    }
+    await authRepository.updateUser(userId, { is_active: normalizedActive });
+    if (!normalizedActive) {
       await authRepository.revokeAllUserRefreshTokens(userId);
     }
     invalidateUserCache(userId);
@@ -342,9 +566,10 @@ class AuthService {
 
   // --- SHARES ---
   async shareWithViewer(ownerId, viewerEmail) {
-    logger.info(`[AuthService] Usuario ${ownerId} compartiendo con ${logger.maskEmail(viewerEmail)}`);
+    const cleanEmail = typeof viewerEmail === 'string' ? viewerEmail.trim().toLowerCase() : '';
+    logger.info(`[AuthService] Usuario ${ownerId} compartiendo con ${logger.maskEmail(cleanEmail)}`);
 
-    const viewer = await authRepository.findUserByEmail(viewerEmail);
+    const viewer = await authRepository.findUserByEmail(cleanEmail);
     if (!viewer) {
       throw new AppError(404, 'No se encontró un usuario con ese email');
     }
@@ -415,17 +640,19 @@ class AuthService {
   }
 
   _sanitizeUser(user) {
+    const mustChange = Boolean(user.must_change_password ?? user.mustChangePassword);
     return {
       id: user.id,
       email: user.email,
       username: user.username,
       name: user.name,
-      role: user.role_name,
-      roleId: user.role_id,
-      avatarUrl: user.avatar_url,
-      isActive: user.is_active,
-      createdAt: user.created_at,
-      updatedAt: user.updated_at,
+      role: user.role_name || user.role,
+      roleId: user.role_id ?? user.roleId,
+      avatarUrl: user.avatar_url ?? user.avatarUrl ?? null,
+      isActive: Boolean(user.is_active ?? user.isActive ?? true),
+      mustChangePassword: mustChange,
+      createdAt: user.created_at ?? user.createdAt,
+      updatedAt: user.updated_at ?? user.updatedAt,
     };
   }
 }
