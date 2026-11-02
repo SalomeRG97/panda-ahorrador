@@ -864,12 +864,14 @@ export const MonthLayoutPage: React.FC = () => {
               <span>Total Gastos</span>
               <strong>{formatCurrency(totalExpenses)}</strong>
             </div>
-            <div className="total-box bg-ahorros">
-              <span>Saldo Ahorro Disponible</span>
-              <strong>{formatCurrency(savingsBalanceBefore + monthSaving - savingsWithdrawn)}</strong>
-              <small style={{ fontSize: '0.72rem', opacity: 0.85, fontWeight: 'normal' }}>
-                (Mes: {formatCurrency(monthSaving - savingsWithdrawn)})
-              </small>
+            <div className="total-box bg-ahorros" style={{ minWidth: 0, overflow: 'hidden' }}>
+              <span style={{ fontSize: '0.82rem', fontWeight: 600, letterSpacing: '-0.2px' }}>Ahorro del Mes</span>
+              <strong style={{ fontSize: '1.05rem', color: (monthSaving - savingsWithdrawn) >= 0 ? '#1E4E36' : '#D4566A' }}>
+                {formatCurrency(monthSaving - savingsWithdrawn)}
+              </strong>
+              <span style={{ fontSize: '0.72rem', color: '#6A5B7B', marginTop: '2px', background: 'rgba(244, 196, 48, 0.25)', padding: '2px 6px', borderRadius: '6px', whiteSpace: 'nowrap' }}>
+                Alcancía: {formatCurrency(savingsBalanceBefore + monthSaving - savingsWithdrawn)}
+              </span>
             </div>
             <div className="total-box" style={{ background: '#A8D8EA', color: '#1E4B5E' }}>
               <span>Restante Libre</span>
@@ -1341,8 +1343,10 @@ export const MonthLayoutPage: React.FC = () => {
         .view-toggle-btn.active, .view-toggle-btn:hover { background: #D4566A; color: #fff; border-color: #D4566A; }
         .saving-input-group { display: flex; align-items: center; gap: 6px; width: 100%; }
         .currency-symbol { font-weight: 700; font-size: 1.1rem; }
-        .totals-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-top: 20px; }
-        .total-box { padding: 14px; border-radius: 14px; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 0.9rem; white-space: nowrap; }
+        .totals-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-top: 20px; }
+        .total-box { padding: 14px 12px; border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 0.9rem; text-align: center; }
+        .total-box span:first-child { font-size: 0.82rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; opacity: 0.85; }
+        .total-box strong { font-size: 1.15rem; word-break: break-word; line-height: 1.25; }
         .bg-ingresos { background: #EAF6F0; color: #1E4E36; }
         .bg-gastos { background: #FDEEF4; color: #6A1B3B; }
         .bg-ahorros { background: #FFF9EB; color: #5B4810; }
