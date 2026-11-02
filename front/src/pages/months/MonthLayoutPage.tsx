@@ -237,8 +237,10 @@ export const MonthLayoutPage: React.FC = () => {
     ApiService.getMonthDetails(mId)
       .then((data) => {
         setMonthDetails(data);
-        setMonthSaving(data.saving || 0);
-        setSavingsBalanceBefore(parseFloat(data.savingsBalanceBefore as any) || 0);
+        const currentSaving = parseFloat(data.saving as any) || 0;
+        const balanceBefore = parseFloat(data.savingsBalanceBefore as any) || 0;
+        setMonthSaving(currentSaving);
+        setSavingsBalanceBefore(balanceBefore);
         calculateTotals(data);
         generateCalendarGrid(data);
 
@@ -768,52 +770,55 @@ export const MonthLayoutPage: React.FC = () => {
             {/* SECCIÓN AHORRO DEL MES */}
             <div className="savings-card card-pastel">
               <div className="savings-icon">🪙</div>
-              <h3>Ahorro del Mes y Saldo Acumulado</h3>
-              <p>Define la cantidad que apartas este mes para tu alcancía:</p>
+              <h3>Ahorro del Mes</h3>
+              <p>Define o edita el monto que apartas para el ahorro en este mes:</p>
               <div className="saving-input-group">
                 <span className="currency-symbol">$</span>
                 <input
                   type="number"
-                  value={monthSaving}
+                  value={monthSaving || ''}
                   onChange={(e) => setMonthSaving(parseFloat(e.target.value) || 0)}
+                  placeholder="0"
                   className="form-input"
                 />
-                <button onClick={saveMonthSaving} className="btn-pastel btn-primary-pastel">Guardar</button>
+                <button onClick={saveMonthSaving} className="btn-pastel btn-primary-pastel">
+                  <i className="fa-solid fa-floppy-disk"></i> Guardar
+                </button>
               </div>
 
               {/* DESGLOSE CLARO DE AHORROS Y SALDO */}
-              <div style={{ marginTop: '16px', padding: '12px', background: '#FFF9FA', borderRadius: '12px', border: '1px solid #F4C430', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.88rem' }}>
+              <div style={{ marginTop: '16px', padding: '14px', background: '#FFF9FA', borderRadius: '12px', border: '1.5px solid #F4C430', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.88rem', width: '100%', boxSizing: 'border-box' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6A5B7B' }}>
-                  <span>📦 Saldo que venía de meses anteriores:</span>
-                  <strong style={{ color: savingsBalanceBefore >= 0 ? '#4E9F76' : '#D4566A' }}>
-                    {formatCurrency(savingsBalanceBefore)}
+                  <span>📦 Saldo de meses anteriores:</span>
+                  <strong style={{ color: Number(savingsBalanceBefore) >= 0 ? '#4E9F76' : '#D4566A' }}>
+                    {formatCurrency(Number(savingsBalanceBefore))}
                   </strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6A5B7B' }}>
                   <span>➕ Aportado este mes:</span>
-                  <strong style={{ color: '#4E9F76' }}>+{formatCurrency(monthSaving)}</strong>
+                  <strong style={{ color: '#4E9F76' }}>+{formatCurrency(Number(monthSaving))}</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6A5B7B' }}>
                   <span>➖ Retirado con "Retiro de ahorros":</span>
-                  <strong style={{ color: '#D4566A' }}>-{formatCurrency(savingsWithdrawn)}</strong>
+                  <strong style={{ color: '#D4566A' }}>-{formatCurrency(Number(savingsWithdrawn))}</strong>
                 </div>
                 <hr style={{ border: 'none', borderTop: '1px dashed #F4A6C1', margin: '4px 0' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#8C7B99' }}>
                   <span>Movimiento neto solo de este mes:</span>
-                  <span style={{ fontWeight: 600, color: (monthSaving - savingsWithdrawn) >= 0 ? '#4E9F76' : '#D4566A' }}>
-                    {formatCurrency(monthSaving - savingsWithdrawn)}
+                  <span style={{ fontWeight: 600, color: (Number(monthSaving) - Number(savingsWithdrawn)) >= 0 ? '#4E9F76' : '#D4566A' }}>
+                    {formatCurrency(Number(monthSaving) - Number(savingsWithdrawn))}
                   </span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', fontWeight: 700, marginTop: '2px' }}>
-                  <span style={{ color: '#B8860B' }}>💰 Saldo Total Disponible en Ahorros:</span>
-                  <strong style={{ color: (savingsBalanceBefore + monthSaving - savingsWithdrawn) >= 0 ? '#4E9F76' : '#D4566A' }}>
-                    {formatCurrency(savingsBalanceBefore + monthSaving - savingsWithdrawn)}
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', fontWeight: 700, marginTop: '2px', alignItems: 'center' }}>
+                  <span style={{ color: '#B8860B' }}>💰 Saldo Total en Alcancía:</span>
+                  <strong style={{ color: (Number(savingsBalanceBefore) + Number(monthSaving) - Number(savingsWithdrawn)) >= 0 ? '#4E9F76' : '#D4566A', fontSize: '1.05rem' }}>
+                    {formatCurrency(Number(savingsBalanceBefore) + Number(monthSaving) - Number(savingsWithdrawn))}
                   </strong>
                 </div>
               </div>
 
               <p style={{ fontSize: '0.75rem', margin: '8px 0 0 0', opacity: 0.75 }}>
-                💡 Para retirar de tus ahorros, registra un gasto cuyo medio de pago sea «Retiro de ahorros».
+                💡 Puedes cambiar el valor ahorrado arriba y hacer clic en <strong>Guardar</strong> cuando lo desees.
               </p>
             </div>
           </div>
@@ -866,11 +871,11 @@ export const MonthLayoutPage: React.FC = () => {
             </div>
             <div className="total-box bg-ahorros" style={{ minWidth: 0, overflow: 'hidden' }}>
               <span style={{ fontSize: '0.82rem', fontWeight: 600, letterSpacing: '-0.2px' }}>Ahorro del Mes</span>
-              <strong style={{ fontSize: '1.05rem', color: (monthSaving - savingsWithdrawn) >= 0 ? '#1E4E36' : '#D4566A' }}>
-                {formatCurrency(monthSaving - savingsWithdrawn)}
+              <strong style={{ fontSize: '1.05rem', color: (Number(monthSaving) - Number(savingsWithdrawn)) >= 0 ? '#1E4E36' : '#D4566A' }}>
+                {formatCurrency(Number(monthSaving) - Number(savingsWithdrawn))}
               </strong>
               <span style={{ fontSize: '0.72rem', color: '#6A5B7B', marginTop: '2px', background: 'rgba(244, 196, 48, 0.25)', padding: '2px 6px', borderRadius: '6px', whiteSpace: 'nowrap' }}>
-                Alcancía: {formatCurrency(savingsBalanceBefore + monthSaving - savingsWithdrawn)}
+                Alcancía: {formatCurrency(Number(savingsBalanceBefore) + Number(monthSaving) - Number(savingsWithdrawn))}
               </span>
             </div>
             <div className="total-box" style={{ background: '#A8D8EA', color: '#1E4B5E' }}>
