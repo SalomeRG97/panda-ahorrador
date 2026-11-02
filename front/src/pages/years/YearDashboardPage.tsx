@@ -154,8 +154,13 @@ export const YearDashboardPage: React.FC = () => {
           <div className="metric-card card-pastel bg-ahorros">
             <span className="metric-icon">🪙</span>
             <div className="metric-info">
-              <span className="metric-label">Total Ahorros</span>
-              <span className="metric-value">{formatCurrency(summary.totals.savings)}</span>
+              <span className="metric-label">Ahorro Neto Anual</span>
+              <span className="metric-value">{formatCurrency(summary.totals.savingsNet ?? (summary.totals.savings - (summary.totals.savingsWithdrawn || 0)))}</span>
+              {(summary.totals.savingsWithdrawn || 0) > 0 && (
+                <span style={{ fontSize: '0.78rem', color: '#6A5B7B', marginTop: '3px' }}>
+                  Aportado: {formatCurrency(summary.totals.savings)} · Retirado: {formatCurrency(summary.totals.savingsWithdrawn || 0)}
+                </span>
+              )}
             </div>
           </div>
           <div className="metric-card card-pastel bg-fijos">
@@ -208,12 +213,47 @@ export const YearDashboardPage: React.FC = () => {
               {/* AHORROS */}
               <tr className="row-ahorros">
                 <td className="concept-cell">
-                  <span className="badge-concept-ahorro badge-category">🪙 Ahorros</span>
+                  <span className="badge-concept-ahorro badge-category">🪙 Ahorro Aportado</span>
                 </td>
                 {summary?.months.map((m) => (
                   <td key={m.monthId}>{formatCurrency(m.savings)}</td>
                 ))}
                 <td className="total-col">{formatCurrency(summary?.totals?.savings)}</td>
+              </tr>
+              {/* RETIROS DE AHORRO */}
+              <tr className="row-retiro-ahorros" style={{ background: '#FFF5F7' }}>
+                <td className="concept-cell">
+                  <span className="badge-category" style={{ background: '#FAD2E1', color: '#722F37' }}>
+                    🔻 Retiro de Ahorros
+                  </span>
+                </td>
+                {summary?.months.map((m) => (
+                  <td key={m.monthId} style={{ color: (m.savingsWithdrawn || 0) > 0 ? '#D4566A' : undefined }}>
+                    {formatCurrency(m.savingsWithdrawn || 0)}
+                  </td>
+                ))}
+                <td className="total-col" style={{ color: (summary?.totals?.savingsWithdrawn || 0) > 0 ? '#D4566A' : undefined }}>
+                  {formatCurrency(summary?.totals?.savingsWithdrawn || 0)}
+                </td>
+              </tr>
+              {/* AHORRO NETO DEL MES */}
+              <tr className="row-ahorro-neto" style={{ background: '#FFFDF0' }}>
+                <td className="concept-cell">
+                  <span className="badge-category" style={{ background: '#FFF0C2', color: '#855E00', fontWeight: 700 }}>
+                    ✨ Ahorro Neto
+                  </span>
+                </td>
+                {summary?.months.map((m) => {
+                  const net = m.savingsNet !== undefined ? m.savingsNet : (m.savings - (m.savingsWithdrawn || 0));
+                  return (
+                    <td key={m.monthId} className={net < 0 ? 'negative' : ''} style={{ fontWeight: 600 }}>
+                      {formatCurrency(net)}
+                    </td>
+                  );
+                })}
+                <td className={`total-col ${((summary?.totals?.savingsNet ?? 0) < 0) ? 'negative' : ''}`} style={{ fontWeight: 700 }}>
+                  {formatCurrency(summary?.totals?.savingsNet ?? ((summary?.totals?.savings || 0) - (summary?.totals?.savingsWithdrawn || 0)))}
+                </td>
               </tr>
               {/* FIJOS */}
               <tr className="row-fijos">

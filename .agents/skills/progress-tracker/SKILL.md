@@ -16,6 +16,14 @@ description: >-
 
 ## 🟢 Completado
 
+### Corrección de Ahorros Acumulados y Retiros Multimes (Completada el 2026-11-02)
+- [x] **Cálculo de Saldo Acumulado de Ahorros Histórico:**
+  - `month.repository.getSavingsAccumulatedBeforeMonth` calcula la alcancía previa acumulada cronológicamente antes del mes consultado ($\sum \text{Ahorrado previo} - \sum \text{Retiros previos}$).
+  - `MonthService.getMonthDetails` retorna `savingsBalanceBefore`.
+  - En `MonthLayoutPage.tsx` (`Ingresos & Ahorro` y `Resumen del Mes`): desglose transparente de saldo anterior, aporte del mes, retiros del mes, movimiento neto mensual y saldo total disponible en ahorros.
+  - En `YearDashboardPage.tsx` y `summary.repository`: cálculo de `savingsWithdrawn` y `savingsNet` con desglose explícito en tarjetas y tabla anual (Ahorro Aportado, Retiro de Ahorros y Ahorro Neto).
+
+
 ### Fase 0 — Contención y Seguridad Crítica (Completada el 2026-10-28)
 - [x] **Prompt 1 (Git y Secretos):**
   - Repositorio Git inicializado y conectado a `origin/main`.

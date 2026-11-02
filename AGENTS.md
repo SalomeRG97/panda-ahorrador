@@ -61,12 +61,13 @@ Permite a los usuarios:
    - `admin`: gestiona usuarios (`/api/admin/*`) y puede inspeccionar recursos o usar `?viewAs=<userId>`.
    - `regular`: propietario de sus datos financieros; puede compartir acceso de lectura con usuarios de rol `viewer`.
    - `viewer`: acceso **exclusivamente de lectura** a los datos de los usuarios `regular` que le hayan compartido acceso (resuelto en `req.effectiveUserId` y bloqueado para escritura con `403`).
-3. **Fórmula Financiera Mensual:**
+3. **Fórmula Financiera Mensual y Manejo de Ahorros:**
    - $\text{Total Ingresos} = \sum \text{incomes.amount}$
    - $\text{Gastos del Ingreso} = \sum \text{gastos cuyo medio de pago} \neq \text{"Retiro de ahorros"}$
    - $\text{Retiros de Ahorro} = \sum \text{gastos cuyo medio de pago} = \text{"Retiro de ahorros"}$
-   - $\text{Ahorro Neto del Mes} = \text{savings.amount} - \text{Retiros de Ahorro}$
-   - $\text{Disponible Restante} = \text{Total Ingresos} - \text{savings.amount} - \text{Gastos del Ingreso}$
+   - $\text{Movimiento Neto del Mes} = \text{savings.amount} - \text{Retiros de Ahorro}$
+   - $\text{Saldo de Ahorro Acumulado Disponible} = \text{Saldo Previsto de Meses Anteriores} + \text{savings.amount} - \text{Retiros de Ahorro}$
+   - $\text{Disponible Restante en Cuenta Corriente} = \text{Total Ingresos} - \text{savings.amount} - \text{Gastos del Ingreso}$
    - En gastos presupuestados, cuando `real_amount` ya fue registrado se usa `real_amount` para el gasto real; mientras está pendiente (`real_amount IS NULL`), equivale a pendiente de pago y activa notificaciones en la campana del Navbar.
 4. **Recurrencia de Gastos (`expense_recurrences`):**
    - Un gasto presupuestado puede crearse con frecuencia (`weekly`, `biweekly`, `monthly`, `yearly`, etc.) y materializarse automáticamente en los meses/semanas del año activo y de nuevos años creados.

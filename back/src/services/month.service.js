@@ -25,6 +25,13 @@ class MonthService {
     const extraExpenses = await expenseRepository.getExtraExpensesByMonth(monthId);
     const challenge = await challengeRepository.getMonthChallenge(monthId);
 
+    // Saldo acumulado de ahorros previo a este mes
+    const prevSavings = await monthRepository.getSavingsAccumulatedBeforeMonth(
+      month.user_id,
+      month.year,
+      month.month_number
+    );
+
     let challengeProgress = [];
     if (challenge) {
       challengeProgress = await challengeRepository.getProgress(challenge.month_challenge_id);
@@ -35,6 +42,7 @@ class MonthService {
       weeks,
       incomes,
       saving: saving ? saving.amount : 0,
+      savingsBalanceBefore: prevSavings.balanceBefore,
       budgetExpenses,
       extraExpenses,
       challenge,

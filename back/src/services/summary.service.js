@@ -12,11 +12,13 @@ class SummaryService {
         acc.income += m.income;
         acc.expenses += m.expenses;
         acc.savings += m.savings;
+        acc.savingsWithdrawn += (m.savingsWithdrawn || 0);
+        acc.savingsNet += (m.savingsNet !== undefined ? m.savingsNet : (m.savings - (m.savingsWithdrawn || 0)));
         acc.fixed += m.fixed;
         acc.remaining += m.remaining;
         return acc;
       },
-      { income: 0, expenses: 0, savings: 0, fixed: 0, remaining: 0 }
+      { income: 0, expenses: 0, savings: 0, savingsWithdrawn: 0, savingsNet: 0, fixed: 0, remaining: 0 }
     );
 
     return {

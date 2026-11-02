@@ -12,6 +12,23 @@ description: >-
 
 ---
 
+## [2026-11-02] Saldo Acumulado de Ahorros Multimes y Desglose Completo de Ahorro Neto y Retiros
+- **Decisión:**
+  1. Enriquecer `GET /api/months/:id` incorporando `savingsBalanceBefore` (saldo acumulado de ahorros de todos los meses anteriores del usuario: $\sum \text{Aportes previos} - \sum \text{Retiros previos con 'Retiro de ahorros'}$).
+  2. En `MonthLayoutPage` (pestaña `Ingresos & Ahorro` y pestaña `Resumen del Mes`), mostrar de manera diferenciada:
+     - **Saldo que venía de meses anteriores**
+     - **Aportado en el mes actual**
+     - **Retirado en el mes actual** (gastos con medio "Retiro de ahorros")
+     - **Movimiento neto del mes actual**
+     - **Saldo Total Disponible en Ahorros** ($\text{Saldo previo} + \text{Aportado} - \text{Retirado}$). De esta forma, si se retira un valor mayor al ahorro del mes pero respaldado por el ahorro de meses anteriores, el saldo total ya no se muestra erróneamente en negativo.
+  3. En `YearDashboardPage` y `summary.repository` / `summary.service`:
+     - Mostrar en la tarjeta anual el **Ahorro Neto Real** del año ($\sum \text{Aportes} - \sum \text{Retiros}$).
+     - Agregar en la tabla del Dashboard Anual las filas detalladas: **Ahorro Aportado**, **Retiro de Ahorros** y **Ahorro Neto**.
+- **Por qué:** Antes el sistema evaluaba cada mes de forma estrictamente aislada. Al retirar ahorros acumulados de meses anteriores, el mes del retiro mostraba un valor negativo falso sugiriendo deuda o sobregiro, y en el dashboard anual no se reflejaban los retiros sobre el total ahorrado.
+- **Consecuencia:** Claridad contable absoluta entre el flujo mensual y la alcancía acumulada histórica.
+
+---
+
 ## [2026-10-28] Validación Centralizada de Entrada con Zod (`validate.middleware.js`) y Coherencia Fecha-Mes
 - **Decisión:**
   1. Incorporar `zod` en `back/` con el middleware `validate({ body, params, query })` (`back/src/middlewares/validate.middleware.js`) que parsea y normaliza los datos de entrada antes de ejecutar `assertOwnership` y los controladores, respondiendo `400 { success: false, message: 'Datos inválidos', errors: [{ field, message }] }` ante cualquier error de formato.

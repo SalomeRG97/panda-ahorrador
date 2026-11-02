@@ -222,6 +222,8 @@ export interface MonthSummaryItem {
   income: number;
   expenses: number;
   savings: number;
+  savingsWithdrawn?: number;
+  savingsNet?: number;
   fixed: number;
   remaining: number;
 }
@@ -231,6 +233,8 @@ export interface AnnualSummary {
     income: number;
     expenses: number;
     savings: number;
+    savingsWithdrawn?: number;
+    savingsNet?: number;
     fixed: number;
     remaining: number;
   };

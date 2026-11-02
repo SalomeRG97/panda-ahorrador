@@ -63,6 +63,7 @@ class SummaryRepository {
         expenses: totalExpenses,
         savings: totalSaving,
         savingsWithdrawn,
+        savingsNet: totalSaving - savingsWithdrawn,
         fixed: totalFixedBudget,
         remaining
       });
